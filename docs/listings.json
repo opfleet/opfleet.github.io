@@ -2,8 +2,9 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/LoanPost/index.html",
+      "/posts/PerceptronPost/index.html",
       "/posts/PenguinsPost/index.html",
-      "/posts/new-new-test-post/index.html",
       "/posts/new-test-post/index.html",
       "/posts/example-blog-post/index.html"
     ]
