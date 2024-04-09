@@ -69,7 +69,7 @@ class Perceptron(LinearModel):
 
     def grad(self, X, y):
         s = self.score(X)
-        
+
         return torch.where(s*y < 0, y @ X, 0.0)
 
 class PerceptronOptimizer:
@@ -82,5 +82,6 @@ class PerceptronOptimizer:
         Compute one step of the perceptron update using the feature matrix X 
         and target vector y. 
         """
-        self.model.loss(X, y)
+        loss = self.model.loss(X, y)
         self.model.w = self.model.grad(X, y) + self.model.w
+        return loss
