@@ -238,6 +238,9 @@ window.Quarto = {
 
 
 
+<section id="abstract" class="level1">
+<h1>Abstract</h1>
+<p>In this blog post, I am aiming to construct an implementation of the perceptron algorithm and then test its efficacy on a synthetic set of linearly separable data. I will then use the popular Iris dataset that can be found on Kaggle as a prime example of a linearly separable and non-linearly separable dataset. The Iris dataset is composed of three labels, one of which is linearly separable from the rest of the data, and two which are not. I will use this characteristic to use the dataset as both a linearly separable and non-linearly separable set in my exploration.</p>
 <p>Here is a link to my <a href="https://github.com/opfleet/opfleet.github.io/blob/main/posts/PerceptronPost/perceptron.py">perceptron.py</a> file, which contains my implementation of the perceptron algorithm that I use throughout this blog post.</p>
 <p>Here is my implementation of the <code>perceptron.grad()</code> function:</p>
 <pre><code>def grad(self, X, y):
@@ -245,9 +248,6 @@ window.Quarto = {
         return torch.where(s*y &lt; 0, y @ X, 0.0)</code></pre>
 <p>Each line corresponds to the two main lines of math in the perceptron algorithm: <span class="math display">\[s_i = w \cdot x_i \]</span> and return the vector <span class="math display">\[ \mathbb{1}[s_iy_i &lt; 0]y_ix_i\]</span></p>
 <p>The first line is fairly self-explanatory; my <code>perceptron.score()</code> function takes in the input <strong>x_i</strong> and returns its dot product against the weight value <strong>w</strong>, as defined by the algorithm. For the second line, the combination of the double-struck one and the condition it is multiplied against are the mathematical equivalent to an if statement, in that if the condition is true, multiply the following expression by 1, and if the condition is false, multiply the following expression by 0. Thus, I was able to use a <code>torch.where()</code> function to implement this equation, as it uses a condition to assign different values, depending on the evaluation of the condition.</p>
-<section id="abstract" class="level1">
-<h1>Abstract</h1>
-<p>In this blog post, I am aiming to construct an implementation of the perceptron algorithm and then test its efficacy on a synthetic set of linearly separable data. I will then use the popular Iris dataset that can be found on Kaggle as a prime example of a linearly separable and non-linearly separable dataset. The Iris dataset is composed of three labels, one of which is linearly separable from the rest of the data, and two which are not. I will use this characteristic to use the dataset as both a linearly separable and non-linearly separable set in my exploration.</p>
 </section>
 <section id="part-a-implement-perceptron" class="level1">
 <h1>Part A: Implement Perceptron</h1>
