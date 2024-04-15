@@ -2,10 +2,10 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/LogisticPost/index.html",
       "/posts/PerceptronPost/index.html",
       "/posts/LoanPost/index.html",
       "/posts/PenguinsPost/index.html",
-      "/posts/LogisticPost/index.html",
       "/posts/example-blog-post/index.html"
     ]
   }
