@@ -192,3 +192,4 @@ class NewtonOptimizer:
         '''
         gradient = self.model.grad(X, y)
         hessian = self.model.hessian(X, y)
+        self.model.w = self.model.w - (alpha * torch.linalg.inv(hessian))@gradient

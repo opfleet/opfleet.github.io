@@ -241,6 +241,7 @@ window.Quarto = {
 <section id="abstract" class="level1">
 <h1>Abstract</h1>
 <p>In this blog post, I am aiming to construct an implementation of the perceptron algorithm and then test its efficacy on a synthetic set of linearly separable data. I will then use the popular Iris dataset that can be found on Kaggle as a prime example of a linearly separable and non-linearly separable dataset. The Iris dataset is composed of three labels, one of which is linearly separable from the rest of the data, and two which are not. I will use this characteristic to use the dataset as both a linearly separable and non-linearly separable set in my exploration.</p>
+<p>Later, I will implement the minibatch perceptron algorithm, so that I may experiment with various batch sizes. This method is distinct from the classical perceptron algorithm, as the classical algorithm performs an update step on a single point in the data, while the minibatch algorithm may use multiple data points in each update step.</p>
 <p>Here is a link to my <a href="https://github.com/opfleet/opfleet.github.io/blob/main/posts/PerceptronPost/perceptron.py">perceptron.py</a> file, which contains my implementation of the perceptron algorithm that I use throughout this blog post.</p>
 <p>Here is my implementation of the <code>perceptron.grad()</code> function:</p>
 <pre><code>def grad(self, X, y):
@@ -252,7 +253,7 @@ window.Quarto = {
 <section id="part-a-implement-perceptron" class="level1">
 <h1>Part A: Implement Perceptron</h1>
 <p>In this section, I will be utilizing my perceptron algorithm contained in the file perceptron.py on arbitrary linearly-separable data, to ensure that my implementation works properly.</p>
-<div id="cell-5" class="cell" data-execution_count="299">
+<div id="cell-5" class="cell" data-execution_count="534">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext autoreload</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>autoreload <span class="dv">2</span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> perceptron <span class="im">import</span> Perceptron, PerceptronOptimizer</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -262,7 +263,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Here is a visualization of my linearly-separable data, used to check my perceptron implementation.</p>
-<div id="cell-7" class="cell" data-execution_count="300">
+<div id="cell-7" class="cell" data-execution_count="535">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib <span class="im">import</span> pyplot <span class="im">as</span> plt</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -302,7 +303,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Here I am running my perceptron algorithm on the data, and printing the loss at each iteration. We can see how the loss begins at 0.5, and decreases until it reaches 0, where my algorithm has terminated upon finding a separating line between the two classes.</p>
-<div id="cell-9" class="cell" data-execution_count="301">
+<div id="cell-9" class="cell" data-execution_count="536">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>p <span class="op">=</span> Perceptron() </span>
@@ -336,7 +337,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Here is a visualization showing the loss at each iteration of the perceptron update.</p>
-<div id="cell-11" class="cell" data-execution_count="302">
+<div id="cell-11" class="cell" data-execution_count="537">
 <div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span> (<span class="dv">8</span>,<span class="dv">8</span>))</span>
 <span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>plt.plot(loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
 <span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -356,7 +357,7 @@ window.Quarto = {
 <h1>Part B: Experiments</h1>
 <p>In this section, I will be using the famous linearly-separable Iris data set from R.A. Fisher’s 1936 paper <a href="https://rcs.chemometrics.ru/Tutorials/classification/Fisher.pdf">The Use of Multiple Measurements in Taxonomic Problems</a> from the <a href="https://archive.ics.uci.edu/">UCI Machine Learning Repository</a>. This data set contains three iris species, each with 50 samples and multiple features for each data point. One species of iris is linearly separable from the other two. I will be illustrating the following claims concerning perceptron algorithms: 1. When using 2D data, if the data is linearly separable, then the perceptron will converge to weight vector <strong>w</strong> that describes a separating line. I will choose the <em>setosa</em> species of iris as a binary label, as it is linearly separable from the rest of the data. 2. When using 2D data, if the data is <strong>not</strong> linearly separable, the perceptron algorithm will not settle on a final value of <strong>w</strong>, but will instead run until the maximum number of iterations is reached, without achieving perfect accuracy (assumption that 1000 iterations is sufficient). I will choose the <em>versicolor</em> species of iris as a binary label, as it is not linearly separable from the rest of the data. 3. The perceptron algorithm will be able to work in more than 2 dimensions of data. I will show this by running my algorithm on data with at least 5 features. While the Iris dataset only has 4 features, I will add a dummy 5th feature that is constant between every data point, thereby making the dataset 5th-dimensional, while still maintaining the linear separability of the dataset (when using the <em>setosa</em> species as a binary label).</p>
 <p>First, I will load the Iris dataset into the Jupyter Notebook.</p>
-<div id="cell-14" class="cell" data-execution_count="303">
+<div id="cell-14" class="cell" data-execution_count="538">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">'Iris.csv'</span>)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df.head())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -369,12 +370,12 @@ window.Quarto = {
 4   5            5.0           3.6            1.4           0.2  Iris-setosa</code></pre>
 </div>
 </div>
-<div id="cell-15" class="cell" data-execution_count="304">
+<div id="cell-15" class="cell" data-execution_count="539">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In the following visualization, we can see that the Setosa species of Iris flower is linearly separable from the other two species (Versicolor and Virginica), when looking at the features Sepal Length and Petal Length. We can also see that using these two features, that the Versicolor and Virginica species are not linearly separable from one another. Since we are only using two features, we can consider this data to be 2 dimensional. Thus, we will try to prove our first two claims using the Sepal Length and Petal Length features of this dataset.</p>
-<div id="cell-17" class="cell" data-execution_count="305">
+<div id="cell-17" class="cell" data-execution_count="540">
 <div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">8</span>))</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>plot1 <span class="op">=</span> sns.scatterplot(data<span class="op">=</span> df, x<span class="op">=</span> <span class="st">'SepalLengthCm'</span>, y<span class="op">=</span> <span class="st">'PetalLengthCm'</span>, hue<span class="op">=</span> <span class="st">'Species'</span>, ax<span class="op">=</span> ax)</span>
@@ -389,7 +390,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Now to prep our data. We will only be considering the features Sepal Length and Petal Length in our first two claims. Additionally, since we want to see whether one class is linearly separable from the other two, we will transform the ‘Species’ feature into a binary value representing whether the given Iris data point is of the Setosa species or not.</p>
-<div id="cell-19" class="cell" data-execution_count="306">
+<div id="cell-19" class="cell" data-execution_count="541">
 <div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> torch.tensor(df[<span class="st">'SepalLengthCm'</span>].values)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> torch.tensor(df[<span class="st">'PetalLengthCm'</span>].values)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>bias <span class="op">=</span> torch.ones(x1.shape[<span class="dv">0</span>])</span>
@@ -403,7 +404,7 @@ window.Quarto = {
 <span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.where(y <span class="op">==</span> <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="cell-20" class="cell" data-execution_count="307">
+<div id="cell-20" class="cell" data-execution_count="542">
 <div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> draw_line(w, x_min, x_max, ax, <span class="op">**</span>kwargs):</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    w_ <span class="op">=</span> w.flatten()</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> torch.linspace(x_min, x_max, <span class="dv">100</span>)</span>
@@ -411,7 +412,7 @@ window.Quarto = {
 <span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    l <span class="op">=</span> ax.plot(x,y,<span class="op">**</span>kwargs)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>As we can see in the following visualization, my implementation of the perceptron algorithm takes 13 update steps to find a separating hyperplane between the setosa species and the rest of the data, when considering the features Sepal Length and Petal Length.</p>
-<div id="cell-22" class="cell" data-execution_count="308">
+<div id="cell-22" class="cell" data-execution_count="543">
 <div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">2</span>)</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
@@ -471,7 +472,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Here is a graph showing the evolution of the loss over the course of the perceptron algorithm. Notice that the graph terminates before the maximum number of iterations at step 13. This shows again that the perceptron converged in 13 update steps.</p>
-<div id="cell-24" class="cell" data-execution_count="309">
+<div id="cell-24" class="cell" data-execution_count="544">
 <div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span> (<span class="dv">8</span>,<span class="dv">8</span>))</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>plt.plot(loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -487,7 +488,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Now, we will do that again on data that is not linearly separable, that is, when the predictive class is either the Versicolor or Virginica species of Iris flower (we will select the Versicolor species arbitrarily here). Again, I am creating a binary label of whether a given data point is of the Versicolor species or not.</p>
-<div id="cell-26" class="cell" data-execution_count="310">
+<div id="cell-26" class="cell" data-execution_count="545">
 <div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>species_versicolor <span class="op">=</span> df[<span class="st">'Species'</span>] <span class="op">==</span> <span class="st">'Iris-versicolor'</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>y2 <span class="op">=</span> torch.from_numpy(species_versicolor.values)</span>
 <span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -496,7 +497,7 @@ window.Quarto = {
 <span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>y2 <span class="op">=</span> torch.where(y2 <span class="op">==</span> <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In this visualization, I show the decision boundary of the final iteration of my perceptron algorithm (at the maximum iteration step, 1000). It is apparent that the decision hyperplane does not cleanly separate the Versicolor species from the rest of the data.</p>
-<div id="cell-28" class="cell" data-execution_count="311">
+<div id="cell-28" class="cell" data-execution_count="546">
 <div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">34</span>)</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
@@ -545,7 +546,7 @@ window.Quarto = {
 </div>
 </div>
 <p>As can be seen in the following visualization, the perceptron algorithm iterates until the max_iter limit of 1000, and does not terminate at a loss of 0.0. This means that the perceptron has not found a hyperplane that perfectly separates the target class from the rest of the data.</p>
-<div id="cell-30" class="cell" data-execution_count="312">
+<div id="cell-30" class="cell" data-execution_count="547">
 <div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span> (<span class="dv">8</span>,<span class="dv">8</span>))</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>plt.plot(loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -561,7 +562,7 @@ window.Quarto = {
 </div>
 </div>
 <p>Here I am using all four of the features in the Iris data set and constructing a dummy feature with the value of 1 across all data points. In this way, I have converted the data to be fifth-dimensional, and kept its linear-separability, when classifying the binary Setosa species label. Consequently, I am reverting back to the binary Setosa label (labeling whether the data point belongs to the Setosa class or not).</p>
-<div id="cell-32" class="cell" data-execution_count="313">
+<div id="cell-32" class="cell" data-execution_count="548">
 <div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> torch.tensor(df[<span class="st">'SepalLengthCm'</span>].values)</span>
 <span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> torch.tensor(df[<span class="st">'PetalLengthCm'</span>].values)</span>
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>x3 <span class="op">=</span> torch.tensor(df[<span class="st">'SepalWidthCm'</span>].values)</span>
@@ -579,7 +580,7 @@ window.Quarto = {
 <span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.where(y <span class="op">==</span> <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
-<div id="cell-33" class="cell" data-execution_count="314">
+<div id="cell-33" class="cell" data-execution_count="549">
 <div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>p3 <span class="op">=</span> Perceptron() </span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>opt3 <span class="op">=</span> PerceptronOptimizer(p3)</span>
@@ -607,7 +608,7 @@ window.Quarto = {
 <span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>    curr_iter <span class="op">+=</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>In the following visualization that plots the evolution of the loss against the number of update steps that my perceptron implementation makes, it can be seen that the algorithm converges to a loss of 0.0 at around step 27. This shows that the perceptron algorithm has found a hyperplane that separates the data belonging to the Setosa species from the rest of the data. Therefore, the dataset that the perceptron is acting upon is linearly separable.</p>
-<div id="cell-35" class="cell" data-execution_count="315">
+<div id="cell-35" class="cell" data-execution_count="550">
 <div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span> (<span class="dv">8</span>,<span class="dv">8</span>))</span>
 <span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>plt.plot(loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
 <span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -623,6 +624,189 @@ window.Quarto = {
 </div>
 </div>
 </section>
+<section id="part-c-minibatch-perceptron" class="level1">
+<h1>Part C: Minibatch Perceptron</h1>
+<p>In this section, I have implemented the mini-batch perceptron algorithm, which computes an update to the perceptron’s weight vector using <span class="math inline">\(k\)</span> points at once, rather than a single point at each step <span class="math inline">\(t\)</span>. I will be performing experiments to confirm the functionality of my implementation, as well as confirming various properties of the minibatch perceptron. Namely: * When <span class="math inline">\(k = 1\)</span>, the minibatch perceptron will perform similarly to the regular perceptron. * When <span class="math inline">\(k = 10\)</span>, the minibatch perceptron will still find a separating line in 2-dimensional data. * When <span class="math inline">\(k = n\)</span>, the minibatch perceptron can converge <strong>even when the data is not linearly separable</strong>, provided that the learning rate <span class="math inline">\(\alpha\)</span> is small enough.</p>
+<p>First, I re-initialized all of the feature vectors and label vectors, creating two different label vectors: <code>y1</code>, containing linearly separable data, and <code>y2</code>, containing non-linearly separable data.</p>
+<div id="cell-38" class="cell" data-execution_count="551">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>x1 <span class="op">=</span> torch.tensor(df[<span class="st">'SepalLengthCm'</span>].values)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>x2 <span class="op">=</span> torch.tensor(df[<span class="st">'PetalLengthCm'</span>].values)</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>bias <span class="op">=</span> torch.ones(x1.shape[<span class="dv">0</span>])</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> torch.stack((x1, x2, bias), <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.from_numpy(species_setosa.values)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>y2 <span class="op">=</span> torch.from_numpy(species_versicolor.values)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> X.<span class="bu">type</span>(torch.FloatTensor)</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> y.<span class="bu">type</span>(torch.FloatTensor)</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>y2 <span class="op">=</span> y2.<span class="bu">type</span>(torch.FloatTensor)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.where(y <span class="op">==</span> <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>y2 <span class="op">=</span> torch.where(y2 <span class="op">==</span> <span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="op">-</span><span class="fl">1.0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>I then trained a minibatch perceptron model with a <span class="math inline">\(k\)</span> value of 1 and a classic perceptron model on the linearly separable data, and compared their functionality.</p>
+<div id="cell-40" class="cell" data-execution_count="552">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">1</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>mini_p <span class="op">=</span> Perceptron() </span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>mini_opt <span class="op">=</span> PerceptronOptimizer(mini_p)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>classic_p <span class="op">=</span> Perceptron()</span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>classic_opt <span class="op">=</span> PerceptronOptimizer(classic_p)</span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>mini_loss <span class="op">=</span> mini_p.loss(X, y).item()</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>max_iter <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="co"># performing training loop for minibatch perceptron</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>mini_loss_vec <span class="op">=</span> []</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>curr_iter <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> mini_loss <span class="op">&gt;</span> <span class="fl">0.0</span> <span class="kw">and</span> curr_iter <span class="op">&lt;=</span> max_iter: <span class="co">#if data is not linearly separable, terminates after 1000 iterations</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># update step with batch size k = 1</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>    mini_opt.step_minibatch(X, y, alpha<span class="op">=</span> <span class="fl">0.001</span>, k<span class="op">=</span> <span class="dv">1</span>)</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a>    mini_loss <span class="op">=</span> mini_p.loss(X, y).item()</span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>    mini_loss_vec.append(mini_loss)</span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>    curr_iter <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a><span class="co"># performing training loop for classic perceptron, for comparison</span></span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a>classic_loss <span class="op">=</span> classic_p.loss(X, y).item()</span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>classic_loss_vec <span class="op">=</span> []</span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> X.shape[<span class="dv">0</span>]</span>
+<span id="cb23-37"><a href="#cb23-37" aria-hidden="true" tabindex="-1"></a>curr_iter <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb23-38"><a href="#cb23-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-39"><a href="#cb23-39" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> classic_loss <span class="op">&gt;</span> <span class="fl">0.0</span> <span class="kw">and</span> curr_iter <span class="op">&lt;=</span> max_iter: <span class="co">#if data is not linearly separable, terminates after 1000 iterations</span></span>
+<span id="cb23-40"><a href="#cb23-40" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb23-41"><a href="#cb23-41" aria-hidden="true" tabindex="-1"></a>    <span class="co"># update step on random point</span></span>
+<span id="cb23-42"><a href="#cb23-42" aria-hidden="true" tabindex="-1"></a>    rand_point <span class="op">=</span> torch.randint(n, size <span class="op">=</span> (<span class="dv">1</span>,))</span>
+<span id="cb23-43"><a href="#cb23-43" aria-hidden="true" tabindex="-1"></a>    x_i <span class="op">=</span> X[[rand_point],:]</span>
+<span id="cb23-44"><a href="#cb23-44" aria-hidden="true" tabindex="-1"></a>    y_i <span class="op">=</span> y[rand_point]</span>
+<span id="cb23-45"><a href="#cb23-45" aria-hidden="true" tabindex="-1"></a>    classic_opt.step(x_i, y_i)</span>
+<span id="cb23-46"><a href="#cb23-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-47"><a href="#cb23-47" aria-hidden="true" tabindex="-1"></a>    classic_loss <span class="op">=</span> classic_p.loss(X, y).item()</span>
+<span id="cb23-48"><a href="#cb23-48" aria-hidden="true" tabindex="-1"></a>    classic_loss_vec.append(classic_loss)</span>
+<span id="cb23-49"><a href="#cb23-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-50"><a href="#cb23-50" aria-hidden="true" tabindex="-1"></a>    curr_iter <span class="op">+=</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-41" class="cell" data-execution_count="553">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>mini_w <span class="op">=</span> torch.clone(mini_p.w)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>classic_w <span class="op">=</span> torch.clone(classic_p.w)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>I plotted the data, and drew the decision boundaries of both models (the minibatch perceptron with <span class="math inline">\(k=1\)</span> in black, and the classic perceptron in red). As can be seen, their functionalities are comparable. Both models converge to a decision boundary that separates the two classes with 0.0 loss.</p>
+<div id="cell-43" class="cell" data-execution_count="554">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize <span class="op">=</span> (<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlim <span class="op">=</span> (<span class="dv">4</span>, <span class="dv">8</span>), ylim <span class="op">=</span> (<span class="dv">0</span>, <span class="dv">8</span>))</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Performance Comparison of Minibatch and Classic Perceptron'</span>)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>plot_perceptron_data(X, y, ax)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>draw_line(mini_w, x_min <span class="op">=</span> <span class="dv">2</span>, x_max <span class="op">=</span> <span class="dv">8</span>, ax <span class="op">=</span> ax, color <span class="op">=</span> <span class="st">"black"</span>)</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>draw_line(classic_w, x_min <span class="op">=</span> <span class="dv">2</span>, x_max <span class="op">=</span> <span class="dv">8</span>, ax <span class="op">=</span> ax, color <span class="op">=</span> <span class="st">"red"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-22-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Then, I trained a minibatch perceptron with a <span class="math inline">\(k\)</span> value of 10 on the linearly separable 2-dimensional data.</p>
+<div id="cell-45" class="cell" data-execution_count="555">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>mini_p <span class="op">=</span> Perceptron() </span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>mini_opt <span class="op">=</span> PerceptronOptimizer(mini_p)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>mini_loss <span class="op">=</span> mini_p.loss(X, y).item()</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>max_iter <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co"># performing training loop for minibatch perceptron</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>mini_loss_vec <span class="op">=</span> []</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>curr_iter <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> mini_loss <span class="op">&gt;</span> <span class="fl">0.0</span> <span class="kw">and</span> curr_iter <span class="op">&lt;=</span> max_iter: <span class="co">#if data is not linearly separable, terminates after 1000 iterations</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># update step with batch size k = 1</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    mini_opt.step_minibatch(X, y, alpha<span class="op">=</span> <span class="fl">0.1</span>, k<span class="op">=</span> <span class="dv">10</span>)</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a>    mini_loss <span class="op">=</span> mini_p.loss(X, y).item()</span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>    mini_loss_vec.append(mini_loss)</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>    curr_iter <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>mini_w <span class="op">=</span> torch.clone(mini_p.w)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>I then plotted the decision boundary of this minibatch perceptron. As can be seen, the model found a separating line on 2-dimensional data.</p>
+<div id="cell-47" class="cell" data-execution_count="556">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize <span class="op">=</span> (<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlim <span class="op">=</span> (<span class="dv">4</span>, <span class="dv">8</span>), ylim <span class="op">=</span> (<span class="dv">0</span>, <span class="dv">8</span>))</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>ax.set_title(<span class="st">'Minibatch Perceptron with k = 10'</span>)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>plot_perceptron_data(X, y, ax)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>draw_line(mini_w, x_min <span class="op">=</span> <span class="dv">2</span>, x_max <span class="op">=</span> <span class="dv">8</span>, ax <span class="op">=</span> ax, color <span class="op">=</span> <span class="st">"black"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-24-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>For the final minibatch perceptron experiment, I trained a model with a <span class="math inline">\(k\)</span> value equal to <span class="math inline">\(n\)</span>, the number of data points, upon non-linearly separable data (<code>y2</code>).</p>
+<div id="cell-49" class="cell" data-execution_count="557">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co"># instantiate a model and an optimizer</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>mini_p <span class="op">=</span> Perceptron() </span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>mini_opt <span class="op">=</span> PerceptronOptimizer(mini_p)</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>mini_loss <span class="op">=</span> mini_p.loss(X, y2).item()</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>max_iter <span class="op">=</span> <span class="dv">1000</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a><span class="co"># performing training loop for minibatch perceptron</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>mini_loss_vec <span class="op">=</span> []</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>curr_iter <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> mini_loss <span class="op">&gt;</span> <span class="fl">0.0</span> <span class="kw">and</span> curr_iter <span class="op">&lt;=</span> max_iter: <span class="co">#if data is not linearly separable, terminates after 1000 iterations</span></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># update step with batch size k = 1</span></span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>    mini_opt.step_minibatch(X, y2, alpha<span class="op">=</span> <span class="fl">0.0002</span>, k<span class="op">=</span> y2.shape[<span class="dv">0</span>])</span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    mini_loss <span class="op">=</span> mini_p.loss(X, y2).item()</span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>    mini_loss_vec.append(mini_loss)</span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>    curr_iter <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>mini_w <span class="op">=</span> torch.clone(mini_p.w)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>I then plotted the evolution of the minibatch perceptron’s loss. Even on non-linearly separable data, the decision boundary of the model converges to a value of around 0.55.</p>
+<div id="cell-51" class="cell" data-execution_count="558">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>plt.figure(figsize<span class="op">=</span> (<span class="dv">8</span>,<span class="dv">8</span>))</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>plt.plot(mini_loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>plt.scatter(torch.arange(<span class="bu">len</span>(mini_loss_vec)), mini_loss_vec, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>labs <span class="op">=</span> plt.gca().<span class="bu">set</span>(xlabel <span class="op">=</span> <span class="st">"Perceptron Iteration (Updates Only)"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, title <span class="op">=</span> <span class="st">"Minibatch Perceptron Loss on Non-Linearly Separable Data"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-26-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
 <section id="part-d-writing" class="level1">
 <h1>Part D: Writing</h1>
 <p>Question: What is the runtime complexity of a single iteration of the perceptron algorithm?</p>
@@ -631,6 +815,7 @@ window.Quarto = {
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
 <p>In this blog post, I constructed a working implementation of the perceptron algorithm and first tested it successfully against a synthetic linearly separable dataset. I then experimented with my algorithm using the Iris dataset, which could be modified to be a linearly separable dataset, a non-linearly separable dataset (depending on the class being classified), or a dataset with five features. Through my experimentation, I found that my perceptron worked correctly against a linearly separable dataset with 2 dimensions, predictably did not terminate on a non-linearly separable dataset with 2 dimensions, and successfully found a hyperplane that separated a linearly separable dataset with 5 dimensions.</p>
+<p>I then returned to this blog post to implement the minibatch perceptron algorithm, confirming its functionality by experimenting with batch sizes of 1, 10, and <span class="math inline">\(n\)</span>, where <span class="math inline">\(n\)</span> is the number of data points.</p>
 
 
 </section>

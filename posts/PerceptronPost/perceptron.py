@@ -69,8 +69,21 @@ class Perceptron(LinearModel):
 
     def grad(self, X, y):
         s = self.score(X)
-
+        
         return torch.where(s*y < 0, y @ X, 0.0)
+    
+    def grad_minibatch(self, X_sub, y_sub, k):
+        '''
+        X is of size k x p, where k is # of data points in 
+        minibatch and p is the number of features.
+        '''
+        
+        outputs = []
+        for i in range(0, k):
+            outputs.append(self.grad(X_sub[[i],:], y_sub[i].unsqueeze(-1)))
+        tensors = torch.stack(outputs, dim = 0)
+        return torch.sum(tensors)
+
 
 class PerceptronOptimizer:
 
@@ -79,9 +92,14 @@ class PerceptronOptimizer:
     
     def step(self, X, y):
         """
-        Compute one step of the perceptron update using the feature matrix X 
-        and target vector y. 
+        Compute one step of the perceptron update using the 
+        feature matrix X and target vector y. 
         """
         loss = self.model.loss(X, y)
         self.model.w = self.model.grad(X, y) + self.model.w
         return loss
+    
+    def step_minibatch(self, X, y, alpha, k):
+        ix = torch.randperm(X.size(0))[:k]
+        self.model.w = self.model.w + (alpha/k) * self.model.grad_minibatch(X[ix,:], y[ix], k)
+        return self.model.loss(X, y)
