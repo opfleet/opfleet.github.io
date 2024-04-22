@@ -204,8 +204,8 @@ class GradientDescentOptimizer:
             N/A
         '''
 
-        w_k = self.model.w
+        w_k = torch.clone(self.model.w)
         gradient = self.model.grad(X, y)
 
         self.model.w = self.model.w - alpha*gradient + beta*(self.model.w - self.model.old_w)
-        self.model.old_w = w_k
+        self.model.old_w = torch.clone(w_k)
