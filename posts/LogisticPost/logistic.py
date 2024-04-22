@@ -55,23 +55,6 @@ class LogisticRegression(LinearModel):
     '''
     THIS IS WITH LOOP
     def loss(self, X, y):
-        
-        Compute the empirical risk L(w) using the logistic loss function.
-
-        PARAMETERS:
-            X, torch.Tensor: the feature matrix. X.size() == (n, p), 
-            where n is the number of data points and p is the 
-            number of features.
-
-            y, torch.Tensor: the label vector. y.size() == (n,),
-            where n is the number of data points. Vector of labels is
-            in {0.0, 1.0}.
-
-        RETURNS:
-            loss, torch.Tensor: the empirical risk of the LR model on 
-            the feature matrix X, compared to the label vector y.
-            loss.size() == (1,).
-        
 
         n = X.shape[0]
         sum = 0
@@ -81,7 +64,7 @@ class LogisticRegression(LinearModel):
     
             sum += expression1-expression2
         return sum / n
-        '''
+    '''
     
     def loss(self, X, y):
         '''
@@ -110,31 +93,6 @@ class LogisticRegression(LinearModel):
     '''
     THIS IS WITH LOOP
     def grad(self, X, y):
-        
-        For an M, you can implement LogisticRegression.grad using a 
-        for-loop. For an E, your solution should involve no explicit 
-        loops. While working on a solution that avoids loops, you might 
-        find it useful to at some point convert a tensor v with shape 
-        (n,) into a tensor v_ with shape (n,1). The code v_ = v[:, None] 
-        will perform this conversion for you.
-
-        Compute the gradient of the empirical risk L(w) for logistic 
-        regression.
-
-        PARAMETERS:
-            X, torch.Tensor: the feature matrix. X.size() == (n, p), 
-            where n is the number of data points and p is the 
-            number of features.
-
-            y, torch.Tensor: the label vector. y.size() == (n,),
-            where n is the number of data points. Vector of labels is
-            in {0.0, 1.0}.
-
-        RETURNS:
-            gradient, torch.Tensor: the gradient of the empirical risk of
-            the logistic loss function on the feature matrix X and the 
-            label vector y. gradient.size() == (n,).
-        
 
         n = X.shape[0]
         sum = 0
@@ -142,7 +100,7 @@ class LogisticRegression(LinearModel):
             expression = (torch.sigmoid(self.score(X)[i]) - y[i])*X[i]
             sum += expression
         return sum / n
-        '''
+    '''
     
     def grad(self, X, y):
         '''
