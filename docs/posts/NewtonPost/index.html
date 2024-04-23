@@ -8,6 +8,7 @@
 
 <meta name="author" content="Oscar Fleet">
 <meta name="dcterms.date" content="2024-04-15">
+<meta name="description" content="In this blog post, I will implement Newton’s method for optimization and experiment upon its effects on logistic regression.">
 
 <title>My Awesome CSCI 0451 Blog - Newton’s Method for Logistic Regression</title>
 <style>
@@ -21,6 +22,40 @@ ul.task-list li input[type="checkbox"] {
   width: 0.8em;
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -163,7 +198,12 @@ window.Quarto = {
   <div class="quarto-title-banner page-columns page-full">
     <div class="quarto-title column-body">
       <h1 class="title">Newton’s Method for Logistic Regression</h1>
-                      </div>
+                  <div>
+        <div class="description">
+          In this blog post, I will implement Newton’s method for optimization and experiment upon its effects on logistic regression.
+        </div>
+      </div>
+                </div>
   </div>
     
   
@@ -198,29 +238,181 @@ window.Quarto = {
 
 
 
+<div id="cell-1" class="cell" data-execution_count="209">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>load_ext autoreload</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="op">%</span>autoreload <span class="dv">2</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> logistic <span class="im">import</span> LogisticRegression, GradientDescentOptimizer, NewtonOptimizer</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The autoreload extension is already loaded. To reload it, use:
+  %reload_ext autoreload</code></pre>
+</div>
+</div>
 <section id="abstract" class="level1">
 <h1>Abstract</h1>
+<p>In this blog post, I utilized my past implementation of a logistic regression model, and extended it by creating an optimizer that used Newton’s Method for optimization. Newton’s Method is a second-order optimization technique, and as such, is expected to converge the logistic regression model’s loss to an acceptable answer in fewer iterations. To confirm my optimizer’s functionality, I conducted three experiments that illustrated my model converging properly when using Newton’s Method as an optimizer, Newton’s Method converging in fewer iterations than standard gradient descent, and the property of Newton’s Method failing to converge when the learning rate <span class="math inline">\(\alpha\)</span> is too large. I finished this blog post by analyzing the computational cost of Newton’s Method and standard gradient descent and then comparing the two.</p>
 </section>
 <section id="part-a-implement-newtonoptimizer" class="level1">
 <h1>Part A: Implement <code>NewtonOptimizer</code></h1>
+<p>Here is a link to my <a href="https://github.com/opfleet/opfleet.github.io/blob/main/posts/NewtonPost/logistic.py">logistic.py</a> file, which contains my documented implementation of the logistic regression model and <code>NewtonOptimizer</code> which I use throughout this blog post.</p>
 </section>
 <section id="part-b-perform-experiments" class="level1">
 <h1>Part B: Perform Experiments</h1>
+<p>Here is a code chunk to generate arbitrary data with two labels that my logistic regression model will be able to classify throughout my experiments.</p>
+<div id="cell-8" class="cell" data-execution_count="210">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> matplotlib <span class="im">import</span> pyplot <span class="im">as</span> plt</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> classification_data(n_points <span class="op">=</span> <span class="dv">300</span>, noise <span class="op">=</span> <span class="fl">0.2</span>, p_dims <span class="op">=</span> <span class="dv">2</span>):</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> torch.arange(n_points) <span class="op">&gt;=</span> <span class="bu">int</span>(n_points<span class="op">/</span><span class="dv">2</span>)</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> <span class="fl">1.0</span><span class="op">*</span>y</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> y[:, <span class="va">None</span>] <span class="op">+</span> torch.normal(<span class="fl">0.0</span>, noise, size <span class="op">=</span> (n_points,p_dims))</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> torch.cat((X, torch.ones((X.shape[<span class="dv">0</span>], <span class="dv">1</span>))), <span class="dv">1</span>)</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> X, y</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
 <section id="experiment-1-choosing-alpha" class="level3">
 <h3 class="anchored" data-anchor-id="experiment-1-choosing-alpha">Experiment 1: Choosing <span class="math inline">\(\alpha\)</span></h3>
+<p><strong>Hypothesis</strong>: When <span class="math inline">\(\alpha\)</span> is chosen appropriately, Newton’s Method converges to the correct choice of <strong>w</strong>.</p>
+<p>Below, I generated 2-dimensional classification data with 500 data points for my logistic regression model to be trained on. I then instantiated a logistic regression model, as well as my <code>NewtonOptimizer</code>, which implements Newton’s Method. I then ran a training loop for 200 iterations, and used an <span class="math inline">\(\alpha\)</span> value of 200 for my optimization steps.</p>
+<div id="cell-11" class="cell" data-execution_count="211">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">123</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>X, y <span class="op">=</span> classification_data(n_points<span class="op">=</span> <span class="dv">500</span>, noise<span class="op">=</span> <span class="fl">0.5</span>, p_dims<span class="op">=</span> <span class="dv">2</span>)</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>LR_newt <span class="op">=</span> LogisticRegression()</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>opt_newt <span class="op">=</span> NewtonOptimizer(LR_newt)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>loss_vec_newt <span class="op">=</span> []</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200</span>):</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    local_loss <span class="op">=</span> LR_newt.loss(X, y).item()</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    opt_newt.step(X, y, alpha<span class="op">=</span> <span class="dv">200</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    loss_vec_newt.append(local_loss)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(loss_vec_newt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.5663606524467468, 0.38903510570526123, 0.3066951036453247, 0.25806131958961487, 0.22755499184131622, 0.20831289887428284, 0.19647885859012604, 0.18954026699066162, 0.18572716414928436, 0.18378372490406036, 0.1828673779964447, 0.18246540427207947, 0.1822993904352188, 0.18223392963409424, 0.18220892548561096, 0.1821995973587036, 0.18219614028930664, 0.18219491839408875, 0.18219442665576935, 0.1821942776441574, 0.18219421803951263, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219417333602905, 0.18219418823719025, 0.18219418823719025, 0.18219417333602905, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025, 0.18219418823719025]</code></pre>
+</div>
+</div>
+<p>In this visualization, I have plotted the evolution of loss of my logistic regression model using Newton’s Method of optimization. As can be seen, the loss converges very quickly to a value of around 0.18. The loss converges in about 10 optimization steps.</p>
+<div id="cell-13" class="cell" data-execution_count="212">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize <span class="op">=</span> (<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>ax.plot(loss_vec_newt, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>ax.scatter(torch.arange(<span class="bu">len</span>(loss_vec_newt)), loss_vec_newt, s <span class="op">=</span> <span class="dv">20</span>, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>ax.<span class="bu">set</span>(xlim<span class="op">=</span> (<span class="dv">0</span>, <span class="dv">50</span>))</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>labs <span class="op">=</span> ax.<span class="bu">set</span>(xlabel <span class="op">=</span> <span class="st">"Gradient Descent Step #"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, title <span class="op">=</span> <span class="st">"Evolution of Loss using Newton's Method"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-5-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="experiment-2-speed-of-convergence" class="level3">
 <h3 class="anchored" data-anchor-id="experiment-2-speed-of-convergence">Experiment 2: Speed of Convergence</h3>
+<p><strong>Hypothesis</strong>: Under at least some circumstances, Newton’s Method can converge much faster than standard gradient descent, in the sense of decreasing the empirical risk.</p>
+<p>To compare the speed of Newton’s Method against the speed of standard gradient descent, I instantiated and trained another logistic regression model that used standard gradient descent optimization.</p>
+<div id="cell-16" class="cell" data-execution_count="213">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>LR_grad <span class="op">=</span> LogisticRegression()</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>opt_grad <span class="op">=</span> GradientDescentOptimizer(LR_grad)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>loss_vec_grad <span class="op">=</span> []</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">200</span>):</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    local_loss <span class="op">=</span> LR_grad.loss(X, y).item()</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    opt_grad.step(X, y, alpha<span class="op">=</span> <span class="fl">0.1</span>, beta<span class="op">=</span> <span class="fl">0.1</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    loss_vec_grad.append(local_loss)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(loss_vec_grad)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.6792325973510742, 0.6971638202667236, 0.6887470483779907, 0.6778265237808228, 0.6669315695762634, 0.6563128232955933, 0.6459912061691284, 0.6359645128250122, 0.6262282133102417, 0.6167770028114319, 0.607605516910553, 0.5987083911895752, 0.5900797843933105, 0.5817137360572815, 0.5736044645309448, 0.5657459497451782, 0.5581319332122803, 0.5507563352584839, 0.5436127781867981, 0.5366951823234558, 0.5299970507621765, 0.5235123038291931, 0.5172346830368042, 0.5111578702926636, 0.5052757859230042, 0.4995822012424469, 0.49407121539115906, 0.4887368679046631, 0.4835732579231262, 0.47857466340065, 0.47373542189598083, 0.46904993057250977, 0.4645128548145294, 0.4601188600063324, 0.45586276054382324, 0.4517396092414856, 0.4477444589138031, 0.44387251138687134, 0.4401191771030426, 0.43647998571395874, 0.4329506456851959, 0.4295268952846527, 0.426204651594162, 0.42298004031181335, 0.41984930634498596, 0.41680872440338135, 0.41385483741760254, 0.41098424792289734, 0.4081936776638031, 0.40547993779182434, 0.40284019708633423, 0.40027138590812683, 0.39777079224586487, 0.3953357934951782, 0.3929637372493744, 0.3906523585319519, 0.3883990943431854, 0.3862018287181854, 0.38405841588974, 0.3819667398929596, 0.37992486357688904, 0.3779308497905731, 0.37598296999931335, 0.37407952547073364, 0.3722188174724579, 0.3703991770744324, 0.36861926317214966, 0.3668775260448456, 0.3651726543903351, 0.3635033071041107, 0.3618682622909546, 0.36026623845100403, 0.3586961627006531, 0.3571569621562958, 0.355647474527359, 0.35416680574417114, 0.352713942527771, 0.35128796100616455, 0.34988799691200256, 0.34851330518722534, 0.3471629023551941, 0.34583619236946106, 0.3445323407649994, 0.34325066208839417, 0.34199047088623047, 0.3407512605190277, 0.3395322263240814, 0.3383328914642334, 0.3371526300907135, 0.33599090576171875, 0.33484724164009094, 0.3337211012840271, 0.332612007856369, 0.33151954412460327, 0.3304431438446045, 0.3293825387954712, 0.3283372223377228, 0.327306866645813, 0.326291024684906, 0.32528936862945557, 0.3243015706539154, 0.3233272433280945, 0.3223660886287689, 0.32141783833503723, 0.3204821050167084, 0.31955868005752563, 0.31864720582962036, 0.3177475035190582, 0.3168592154979706, 0.3159821629524231, 0.3151160776615143, 0.3142607510089874, 0.31341585516929626, 0.31258127093315125, 0.31175678968429565, 0.310942143201828, 0.31013715267181396, 0.3093416094779968, 0.3085554242134094, 0.30777832865715027, 0.30701014399528503, 0.3062507212162018, 0.3054998815059662, 0.3047574460506439, 0.3040233254432678, 0.3032973110675812, 0.30257928371429443, 0.30186909437179565, 0.3011665642261505, 0.30047157406806946, 0.2997840642929077, 0.29910382628440857, 0.2984307110309601, 0.29776471853256226, 0.2971056401729584, 0.2964533567428589, 0.29580777883529663, 0.29516878724098206, 0.2945363223552704, 0.2939102053642273, 0.2932903468608856, 0.2926766872406006, 0.29206913709640503, 0.2914675176143646, 0.29087185859680176, 0.29028192162513733, 0.2896977663040161, 0.2891192138195038, 0.28854620456695557, 0.2879786491394043, 0.2874164879322052, 0.2868596315383911, 0.2863079607486725, 0.28576144576072693, 0.28522002696990967, 0.28468358516693115, 0.2841521203517914, 0.2836254835128784, 0.2831036448478699, 0.2825864851474762, 0.2820740342140198, 0.28156620264053345, 0.2810628414154053, 0.28056401014328003, 0.2800695598125458, 0.27957940101623535, 0.2790936231613159, 0.2786119878292084, 0.27813461422920227, 0.2776613235473633, 0.2771921157836914, 0.27672693133354187, 0.2762657105922699, 0.2758083641529083, 0.27535492181777954, 0.274905264377594, 0.2744593918323517, 0.27401721477508545, 0.2735787332057953, 0.27314385771751404, 0.2727125585079193, 0.2722848057746887, 0.2718605399131775, 0.27143973112106323, 0.27102234959602356, 0.2706082761287689, 0.2701975703239441, 0.2697901129722595, 0.2693859338760376, 0.26898491382598877, 0.2685870826244354, 0.26819244027137756, 0.26780083775520325, 0.26741233468055725, 0.26702681183815, 0.26664429903030396, 0.2662647068500519, 0.2658880949020386, 0.2655142843723297, 0.26514339447021484]</code></pre>
+</div>
+</div>
+<p>I then plotted the evolution of the loss of both models to compare them, with the loss of the model using Newton’s Method in green and the loss of the model using standard gradient descent in red. It is apparent that the loss of model using Newton’s Method converges in fewer steps than the loss of the model using standard gradient descent. While it takes Newton’s Method around 10 optimization steps to converge, it takes standard gradient descent at least 100 steps to converge (it seems that the loss for this model is beginning to converge around 100, although I have only plotted the loss to 100 iterations).</p>
+<div id="cell-18" class="cell" data-execution_count="214">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize <span class="op">=</span> (<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>ax.plot(loss_vec_grad, color <span class="op">=</span> <span class="st">"red"</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>ax.scatter(torch.arange(<span class="bu">len</span>(loss_vec_grad)), loss_vec_grad, s <span class="op">=</span> <span class="dv">20</span>, color <span class="op">=</span> <span class="st">"red"</span>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>ax.plot(loss_vec_newt, color <span class="op">=</span> <span class="st">"green"</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>ax.scatter(torch.arange(<span class="bu">len</span>(loss_vec_newt)), loss_vec_newt, s <span class="op">=</span> <span class="dv">20</span>, color <span class="op">=</span> <span class="st">"green"</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>labs <span class="op">=</span> ax.<span class="bu">set</span>(xlabel <span class="op">=</span> <span class="st">"Gradient Descent Step #"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, title <span class="op">=</span> <span class="st">"Comparison of Loss Evolution: Newton's Method vs. Gradient Descent"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-7-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="experiment-3-failure-to-converge" class="level3">
 <h3 class="anchored" data-anchor-id="experiment-3-failure-to-converge">Experiment 3: Failure to Converge</h3>
+<p><strong>Hypothesis</strong>: If <span class="math inline">\(\alpha\)</span> is too large, Newton’s Method fails to converge.</p>
+<p>To test this, I instantiated and trained another logistic regression model that used Newton’s Method for optimization. I began training the model with an <span class="math inline">\(\alpha\)</span> value of 1000, and then steadily increased and decreased the value until the evolution of loss failed to converge. I eventually found that Newton’s Method fails to converge upon this data when using an <span class="math inline">\(\alpha\)</span> value of at least 1015.</p>
+<div id="cell-21" class="cell" data-execution_count="215">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>LR_newt <span class="op">=</span> LogisticRegression()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>opt_newt <span class="op">=</span> NewtonOptimizer(LR_newt)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>loss_vec_newt <span class="op">=</span> []</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> _ <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">100</span>):</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    local_loss <span class="op">=</span> LR_newt.loss(X, y).item()</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    opt_newt.step(X, y, alpha<span class="op">=</span> <span class="dv">1015</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    loss_vec_newt.append(local_loss)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(loss_vec_newt)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.4981890916824341, 0.2040444314479828, 0.1829507201910019, 0.18338710069656372, 0.18297818303108215, 0.18341781198978424, 0.18301132321357727, 0.18345630168914795, 0.1830507516860962, 0.18350304663181305, 0.18309730291366577, 0.18355880677700043, 0.1831519454717636, 0.18362431228160858, 0.1832159459590912, 0.18370071053504944, 0.18329083919525146, 0.1837894320487976, 0.18337838351726532, 0.18389193713665009, 0.18348078429698944, 0.18401022255420685, 0.18360063433647156, 0.18414635956287384, 0.18374072015285492, 0.1843028962612152, 0.18390445411205292, 0.18448254466056824, 0.18409545719623566, 0.18468840420246124, 0.1843176633119583, 0.1849239021539688, 0.1845751255750656, 0.18519286811351776, 0.1848718672990799, 0.1854993849992752, 0.18521182239055634, 0.18584798276424408, 0.1855984926223755, 0.18624359369277954, 0.1860351860523224, 0.1866917461156845, 0.1865246295928955, 0.18719840049743652, 0.1870698183774948, 0.18776987493038177, 0.18767385184764862, 0.18841281533241272, 0.18834058940410614, 0.1891338974237442, 0.18907418847084045, 0.18993951380252838, 0.18988028168678284, 0.1908358484506607, 0.1907646209001541, 0.1918284296989441, 0.19173328578472137, 0.1929221749305725, 0.19279208779335022, 0.19412146508693695, 0.19394567608833313, 0.19542941451072693, 0.1951974332332611, 0.19684751331806183, 0.19654926657676697, 0.19837622344493866, 0.19800043106079102, 0.20001257956027985, 0.19954748451709747, 0.20175133645534515, 0.20118489861488342, 0.20358389616012573, 0.2029033899307251, 0.20549814403057098, 0.20469054579734802, 0.2074785828590393, 0.20653103291988373, 0.2095061093568802, 0.20840707421302795, 0.21156039834022522, 0.21029846370220184, 0.2136181741952896, 0.21218419075012207, 0.2156571000814438, 0.2140435427427292, 0.2176545262336731, 0.21585562825202942, 0.21958953142166138, 0.21760354936122894, 0.22144532203674316, 0.21927222609519958, 0.22320714592933655, 0.22085095942020416, 0.22486603260040283, 0.22233131527900696, 0.22641535103321075, 0.22370930016040802, 0.22785264253616333, 0.22498372197151184, 0.2291775792837143]</code></pre>
+</div>
+</div>
+<p>I then created a visualization showing the evolution of the loss using Newton’s Method. As can be seen, the loss converged until about optimization step 40, where it then began to increase steadily, thereby diverging. I highlighted this section of the evolution in red.</p>
+<div id="cell-23" class="cell" data-execution_count="216">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(<span class="dv">1</span>, <span class="dv">1</span>, figsize <span class="op">=</span> (<span class="dv">8</span>, <span class="dv">8</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>ax.grid(<span class="va">True</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>ax.plot(loss_vec_newt, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>ax.scatter(torch.arange(<span class="bu">len</span>(loss_vec_newt)<span class="op">-</span><span class="dv">60</span>), loss_vec_newt[:<span class="dv">40</span>], s <span class="op">=</span> <span class="dv">20</span>, color <span class="op">=</span> <span class="st">"slategrey"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>ax.scatter(torch.arange(<span class="dv">40</span>, <span class="bu">len</span>(loss_vec_newt)), loss_vec_newt[<span class="dv">40</span>:], s <span class="op">=</span> <span class="dv">20</span>, color <span class="op">=</span> <span class="st">"red"</span>)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>labs <span class="op">=</span> ax.<span class="bu">set</span>(xlabel <span class="op">=</span> <span class="st">"Gradient Descent Step #"</span>, ylabel <span class="op">=</span> <span class="st">"Loss"</span>, title <span class="op">=</span> <span class="st">"Evolution of Loss using Newton's Method with Large Alpha Value"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="index_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 </section>
 <section id="part-c-operation-counting" class="level1">
 <h1>Part C: Operation Counting</h1>
+<p>Given assumptions, where <span class="math inline">\(c\)</span> is an arbitrary computational unit and <span class="math inline">\(p\times p\)</span> is the size of the Hessian matrix computed in Newton’s Method: * <span class="math inline">\(O(\text{calculate } L) = c\)</span> * <span class="math inline">\(O(\text{calculate } \nabla L) = 2c\)</span> * <span class="math inline">\(O(\text{calculate } H) = pc\)</span> * <span class="math inline">\(O(\text{invert }M^{p\times p}) = k_1p^\gamma\)</span>, where <span class="math inline">\(2\leq \gamma &lt;3\)</span> * <span class="math inline">\(O(\text{multiply } v^{1\times p}M^{p\times p}) = k_2p^2\)</span></p>
+<p>Supposing that Newton’s Method converges to a solution in <span class="math inline">\(t_{nm}\)</span> steps and standard gradient descent converges to a solution in <span class="math inline">\(t_{gd}\)</span> steps, I have written expressions below that describe the total computational cost of each optimization method.</p>
+<p><span class="math display">\[
+\begin{aligned}
+O(\text{Gradient Descent}) &amp;= O(L) + t_{gd}*O(\nabla L) \\
+&amp;= c + 2t_{gd}c \\
+O(\text{Newton's Method}) &amp;= O(L) + t_{nm}*\left(O(\nabla L) + O(H) + O(\text{invert } M^{p\times p}) + O(v^{1\times p}M^{p\times p})\right) \\
+&amp;= c + t_{nm}*(2c + pc + k_1p^\gamma + k_2p^2)
+\end{aligned}
+\]</span></p>
+<p>I then put both of these expressions into an inequality to determine how much smaller <span class="math inline">\(t_{nm}\)</span> must be than <span class="math inline">\(t_{gd}\)</span> in order for Newton’s Method to require fewer computations <span class="math inline">\(c\)</span> to complete. By manipulating this equality, I found that <span class="math inline">\(t_{nm}\)</span> must be smaller than <span class="math inline">\(t_{gd}\)</span> by a factor of <span class="math inline">\((1 + \frac{p}{2} + \frac{k_1p^\gamma}{2c}+\frac{k_2p^2}{2c})\)</span>, for Newton’s Method to be less computational expensive than standard gradient descent. This polynomial expression is dominated by the terms <span class="math inline">\(k_1p^\gamma\)</span> and <span class="math inline">\(k_2p^2\)</span>, and can be simplified as such. Therefore, when <span class="math inline">\(p\)</span> becomes very large, it is increasingly unlikely that Newton’s Method will be less computationally expensive than standard gradient descent, unless it takes a logistic regression model using Newton’s Method <span class="math inline">\(\frac{1}{p^2}\)</span> the number of steps to converge relative to a model using standard logistic regression.</p>
+<p><span class="math display">\[
+\begin{aligned}
+O(\text{Gradient Descent}) &amp;&gt; O(\text{Newton's Method}) \\
+c + 2t_{gd}c &amp;&gt; c + t_{nm}*(2c + pc + k_1p^\gamma + k_2p^2) \\
+2t_{gd}c &amp;&gt; t_{nm}*(2c + pc + k_1p^\gamma + k_2p^2) \\
+t_{gd} &amp;&gt; \frac{t_{nm}}{2c}*(2c + pc + k_1p^\gamma + k_2p^2) \\
+t_{gd} &amp;&gt; t_{nm}*(1 + \frac{p}{2} + \frac{k_1p^\gamma}{2c} + \frac{k_2p^2}{2c})
+\end{aligned}
+\]</span></p>
 </section>
 <section id="conclusion" class="level1">
 <h1>Conclusion</h1>
+<p>In conclusion, my blog post is an extension of my previous blog post concerning logistic regression. My extension included the integration of Newton’s Method as an optimizer for my logistic regression model. Newton’s Method, being a second-order optimization technique, offers the potential for faster convergende, as evidenced by my experiments. In these experiments, I demonstrated the proper convergence of my optimizer, its efficiency in requiring fewer iterations compared to standard gradient descent, and the sensitivity of Newton’s Method to large learning rates of <span class="math inline">\(\alpha\)</span>. Furthermore, an analysis of computational costs revealed valuable insights into the trade-offs between Newton’s Method and standard gradient descent; namely, how the the complexity of Newton’s Method is heavily influenced by the dimensions of the data, <span class="math inline">\(p\)</span>. By showcasing the advantages and limitations of both methods, this blog posts illustrates a deeper understanding of optimization techniques in logistic regression modeling.</p>
 
 
 </section>
