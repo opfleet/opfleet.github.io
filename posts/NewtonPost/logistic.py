@@ -127,7 +127,7 @@ class LogisticRegression(LinearModel):
         '''
         
         scores = self.score(X)
-        D_vec = torch.sigmoid(scores)@(1-torch.sigmoid(scores))
+        D_vec = torch.sigmoid(scores)*(1-torch.sigmoid(scores))
         D = torch.diag(D_vec)
         return X.T@D@X
     
