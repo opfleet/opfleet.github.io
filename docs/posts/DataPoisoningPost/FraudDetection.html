@@ -1,0 +1,2023 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.549">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Oscar Fleet and Tristan Meyer">
+<meta name="dcterms.date" content="2024-05-15">
+<meta name="description" content="In this blog post, we will experiment and illustrate the effectiveness of a data poisoning attack on a fraud detection model.">
+
+<title>My Awesome CSCI 0451 Blog - Data Poisoning in Fraud Detection</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script><script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<style>
+
+      .quarto-title-block .quarto-title-banner h1,
+      .quarto-title-block .quarto-title-banner h2,
+      .quarto-title-block .quarto-title-banner h3,
+      .quarto-title-block .quarto-title-banner h4,
+      .quarto-title-block .quarto-title-banner h5,
+      .quarto-title-block .quarto-title-banner h6
+      {
+        color: white;
+      }
+
+      .quarto-title-block .quarto-title-banner {
+        color: white;
+background-image: url(../../img/landscape.png);
+background-size: cover;
+      }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" integrity="sha512-c3Nl8+7g4LMSTdrm621y7kf9v3SDPnhxLNhcjFJbKECVnmZHTdo+IRO05sNLTH/D3vA6u1X32ehoLC7WFVdheg==" crossorigin="anonymous"></script>
+
+<script type="application/javascript">define('jquery', [],function() {return window.jQuery;})</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top quarto-banner">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">My Awesome CSCI 0451 Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html"> 
+<span class="menu-text">About Oscar</span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://twitter.com"> <i class="bi bi-twitter" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+          <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Data Poisoning in Fraud Detection</h1>
+                  <div>
+        <div class="description">
+          In this blog post, we will experiment and illustrate the effectiveness of a data poisoning attack on a fraud detection model.
+        </div>
+      </div>
+                </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Oscar Fleet and Tristan Meyer </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">May 15, 2024</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+
+<section id="abstract" class="level1">
+<h1>Abstract</h1>
+<p>This blog post explores the implementation and outcome of several data poisoning attacks on a dataset of credit card transactions. Data poisoning is a technique used in adversarial machine learning, where an attacker is able to inject data into the model’s training dataset, or alter the dataset itself, in order to manipulate the model’s future behavior. The project explores the dataset with visualizations that aided in both the implementation of the models and the choice for the targets of the attacks. We implemented a decision tree classification model from scikit-learn. Using this model, we implemented a targeted attack on specific merchants, successfully altering the model’s classification results in relation to the merchant, without compromising the overall accuracy of the model. Further, we implemented a disabling attack targeted at two categories of transactions which also did not compromise the accuracy of the model, but produced inaccurate classifications within these categories compared to the original model. We believe that our data poisoning attacks on the training data sufficiently affected the behavior of the fraud detection model, while not negatively impacting the overall accuracy of the model on the data as a whole.</p>
+<p><a href="https://github.com/tristanmeyer2/CS451-DataPoisoning">Our general repository</a></p>
+<p><a href="https://github.com/tristanmeyer2/CS451-DataPoisoning/blob/main/FraudDetection.ipynb">Our Jupyter Notebook</a></p>
+</section>
+<section id="introduction" class="level1">
+<h1>Introduction</h1>
+<p>Data poisoning is a type of cybersecurity attack aimed at manipulating the training data of a machine learning model in order to introduce unexpected or unintended specific behaviors at the implementation time of the model. We first encountered the topic of data poisoning in the paper, Targeted Backdoor Attacks on Deep Learning Systems Using Data Poisoning, which describes a cyberattack protocol upon a facial recognition system. The paper’s conclusion displays the ability to use a physical key in photographs in a training dataset to manipulate a facial recognition system’s ability to classify a person’s identity reliably, without affecting the model’s accuracy when the physical key is not present (<span class="citation" data-cites="chen2017targeted">Chen et al. (<a href="#ref-chen2017targeted" role="doc-biblioref">2017</a>)</span>).</p>
+<p>We were inspired by the wealth of research into attacking generative art models that scrape the web for training data without the consent of the artists whose work the models are trained upon. In specific, the work of the University of Chicago Department of Computer Science’s team, Shawn Shan, et. al., in creating marketable data poisoning filters for artists, such as Glaze and Nightshade. Glaze is a tool for artists that enables them to apply a “style cloak” to their art before publishing online; this cloak applies a filter to their artwork that disrupts a generative model’s ability to train effectively train upon it, while also being imperceptible to the human eye (<span class="citation" data-cites="shan2023glaze">Shan et al. (<a href="#ref-shan2023glaze" role="doc-biblioref">2023</a>)</span>). In a slightly more aggressive manner, Nightshade employs a filter that is directed at text-to-image generative models, and is classified as a prompt-specific data poisoning attack aimed at corrupting a model’s ability to respond to specific targeted prompts. Nightshade applies a filter that does not disrupt a model’s ability to perceive an image, but rather manipulates a model into believing it is perceiving a different image, e.g., cloaking a picture of a cow so that it appears to be a handbag to a generative model. In doing so, Nightshade attacks the effectiveness of a generative art model by manipulating its ability to accurately perceive the artwork that it is trained upon, dramatically decreasing a model’s useability (<span class="citation" data-cites="shan2024nightshade">Shan et al. (<a href="#ref-shan2024nightshade" role="doc-biblioref">2024</a>)</span>).</p>
+<p>In our project, we aim to recreate the general approaches to a data poisoning attack upon a problem we have seen earlier in our course: financial transaction fraud detection. We hope to create data poisoning attacks on accurate classification models to manipulate a model’s classification output in a targeted manner. In doing so, we believe that our project will illustrate the vulnerabilities of machine learning models, and how those who design and use them ought to create proper security measures in their model’s training procedures, data collection, and data storage.</p>
+</section>
+<section id="values-statement" class="level1">
+<h1>Values Statement</h1>
+<p>We believe that the potential users of our project include machine learning engineers who wish to ensure the security and integrity of their work from those who wish to abuse a company’s reliance on machine learning, security positions within companies that are tasked with issue-spotting in their companies’ models and data protection practices, and companies as a whole, so that they can protect their business operations from manipulation. Others who may benefit from this project include the users who own the data, so that their data and personal information can be better protected, as well as potential victims of fraud, as with the knowledge of how data poisoning works, machine learning engineers can stop more sophisticated fraud attacks.</p>
+<p>Many technology users and companies have the potential to be harmed from the practice of data poisoning. If a company releases software that utilizes a machine learning algorithm unprotected from data poisoning attacks, they run the risk of putting out a faulty product that may one day be used maliciously, as well as endangering all of their customers. In the example of a fraud detection system, if a company failed to create sufficient protections against data poisoning attacks, an attacker may be able to manipulate the model in a variety of ways that would financially harm the company and many of its customers, such as forcing the model to always classify a transaction from a certain merchant or customer as fraudulent, allowing fraud from specific sources or in specific sectors to go undetected, or crippling the effectiveness of the entire system.</p>
+<p>Due to these risks, we, as aspiring machine learning engineers, hope to better understand the practice of data poisoning so that we can design models and databases in the future that are secure from this threat. Additionally, we believe that some methods of data poisoning can be used for good. As in the aforementioned examples of Glaze and Nightshade, certain methods of preemptive data poisoning can be used to protect intellectual property from automated web scraping and unlicensed model training.</p>
+<p>We believe that with a better understanding of what a data poisoning attack looks like, and the extent to which it can detrimentally affect a machine learning model, our work and the work of others can be more secure and safe. If machine learning engineers and database administrators were to create their design processes with possible data poisoning attacks in mind, their models and data protection systems can be more robust, a better asset to their customers and companies, and a tool that users can trust without fear.</p>
+</section>
+<section id="materials-and-methods" class="level1">
+<h1>Materials and Methods</h1>
+<p>Our data was generated in 2014 by Edgar Alonso Lopez-Rojas and Stefan Axelsson in their paper <a href="https://www.kaggle.com/datasets/ealaxi/banksim1">BankSim: A Bank Payment Simulation for Fraud Detection Research</a> (<span class="citation" data-cites="lopezrojasdata">Lopez-Rojas and Axelsson (<a href="#ref-lopezrojasdata" role="doc-biblioref">2014</a>)</span>). The dataset consists of agent-based simulated financial transactions, synthetically generated based on a sample of transactions provided by a bank in Spain. The main purpose of their paper was to generate accurate and representative synthetic data that can be used for fraud detection research and model building, without using sensitive user-specific data. Each entry in the dataset describes the customer ID of a financial transaction, the age of the transaction (how long ago it occurred), the gender of the customer, the zip code of the payment origin, the merchant ID for the payment, the zip code of the merchant, the category of the payment (e.g., transportation, food, etc.), the payment amount, and a binary variable of whether the payment is fraudulent or not. One potential limitation of our dataset is that they all come from the same bank in Spain, and so the variables of zip code origin and merchant zip code are not useful in our classification models. Additionally, the fraud rates for each transaction category may be only representative of the purchasing habits and fraud rates within this region of Spain, and may not be appropriate to extrapolate upon elsewhere in the world. However, this limitation does not necessarily affect our findings, as we are aiming to manipulate the behavior of a machine learning model, not creating a machine learning model that is useful outside of its localized area.</p>
+<p>For our decision tree model, we one-hot encoded all of the categorical features within our dataset so that we could use them as input to our model. Unfortunately, the <code>customer</code> feature had so many distinct values that we were unable to one-hot encode all of them, and so we dropped this feature from our dataset. We used the <code>fraud</code> feature of the data to use as our target label. We subset our data in a train/test split, where the testing data represents 33% of the total dataset, and the training data represents 66%. We chose the Decision Tree classification model from scikit-learn so that we could analyze the relative importance of each feature in the model’s decision process. We evaluated our models using a variety of metrics, including true positive and true negative rates, which are especially important to the fraud detection problem, as we want both of these rates to be high, as opposed to only one of them. In evaluating our data poisoning attacks, we analyzed the fraud prediction rate of our poisoned and baseline models within the categories which we were attacking, e.g., if we were attacking a specific merchant, we would analyze the fraud prediction rate from both poisoned and unpoisoned decision tree models of instances of this specific merchant in the testing data, to ensure that our attack was affecting the behavior of the model.</p>
+</section>
+<section id="project-notebook" class="level1">
+<h1>Project Notebook</h1>
+<p>Importing the data:</p>
+<p>This data set includes seven categorical variables: * Customer = the customer label for the transaction (‘C’ followed by a unique number for each customer) * Gender = the gender of the customer * Zip code Origin = the zip code of the customer where the transaction occurred * Merchant = the merchant label for the transaction (‘M’ followed by a unique number for each customer) * Zip code Origin = the zip code of the merchant * Category = the industry assigned to the transaction * Fraud = whether the transaction was fraud</p>
+<p>The data set also includes two quantitative variables: * Age = how long ago (in years) the transaction occurred * Amount = the dollar amount of the transaction</p>
+<div id="cell-7" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(<span class="st">"bankPayments.csv"</span>)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>df.head()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="1">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">step</th>
+<th data-quarto-table-cell-role="th">customer</th>
+<th data-quarto-table-cell-role="th">age</th>
+<th data-quarto-table-cell-role="th">gender</th>
+<th data-quarto-table-cell-role="th">zipcodeOri</th>
+<th data-quarto-table-cell-role="th">merchant</th>
+<th data-quarto-table-cell-role="th">zipMerchant</th>
+<th data-quarto-table-cell-role="th">category</th>
+<th data-quarto-table-cell-role="th">amount</th>
+<th data-quarto-table-cell-role="th">fraud</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>0</td>
+<td>'C1093826151'</td>
+<td>'4'</td>
+<td>'M'</td>
+<td>'28007'</td>
+<td>'M348934600'</td>
+<td>'28007'</td>
+<td>'es_transportation'</td>
+<td>4.55</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">1</td>
+<td>0</td>
+<td>'C352968107'</td>
+<td>'2'</td>
+<td>'M'</td>
+<td>'28007'</td>
+<td>'M348934600'</td>
+<td>'28007'</td>
+<td>'es_transportation'</td>
+<td>39.68</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">2</td>
+<td>0</td>
+<td>'C2054744914'</td>
+<td>'4'</td>
+<td>'F'</td>
+<td>'28007'</td>
+<td>'M1823072687'</td>
+<td>'28007'</td>
+<td>'es_transportation'</td>
+<td>26.89</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">3</td>
+<td>0</td>
+<td>'C1760612790'</td>
+<td>'3'</td>
+<td>'M'</td>
+<td>'28007'</td>
+<td>'M348934600'</td>
+<td>'28007'</td>
+<td>'es_transportation'</td>
+<td>17.25</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">4</td>
+<td>0</td>
+<td>'C757503768'</td>
+<td>'5'</td>
+<td>'M'</td>
+<td>'28007'</td>
+<td>'M348934600'</td>
+<td>'28007'</td>
+<td>'es_transportation'</td>
+<td>35.72</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="cell-8" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch <span class="im">import</span> nn</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here we are exploring various aspects of the data. First, we see which merchant IDs are the most frequent.</p>
+<div id="cell-10" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df[<span class="st">"merchant"</span>].value_counts())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>merchant
+'M1823072687'    299693
+'M348934600'     205426
+'M85975013'       26254
+'M1053599405'      6821
+'M151143676'       6373
+'M855959430'       6098
+'M1946091778'      5343
+'M1913465890'      3988
+'M209847108'       3814
+'M480139044'       3508
+'M349281107'       2881
+'M1600850729'      2624
+'M1535107174'      1868
+'M980657600'       1769
+'M78078399'        1608
+'M1198415165'      1580
+'M840466850'       1399
+'M1649169323'      1173
+'M547558035'        949
+'M50039827'         916
+'M1888755466'       912
+'M692898500'        900
+'M1400236507'       776
+'M1842530320'       751
+'M732195782'        608
+'M97925176'         599
+'M45060432'         573
+'M1741626453'       528
+'M1313686961'       527
+'M1872033263'       525
+'M1352454843'       370
+'M677738360'        358
+'M2122776122'       341
+'M923029380'        323
+'M3697346'          308
+'M17379832'         282
+'M1748431652'       274
+'M1873032707'       250
+'M2011752106'       244
+'M1416436880'       220
+'M1294758098'       191
+'M1788569036'       181
+'M857378720'        122
+'M348875670'        107
+'M1353266412'        78
+'M495352832'         69
+'M933210764'         69
+'M2080407379'        48
+'M117188757'         21
+'M1726401631'         3
+Name: count, dtype: int64</code></pre>
+</div>
+</div>
+<p>Then, we look at the distribution of gender within the customers that are committing fraudulent payments.</p>
+<div id="cell-12" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>df1 <span class="op">=</span> df[[<span class="st">"gender"</span>, <span class="st">"fraud"</span>]]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>df1.groupby(<span class="st">"gender"</span>).aggregate(<span class="st">'sum'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="4">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">fraud</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">gender</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'E'</td>
+<td>7</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'F'</td>
+<td>4758</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'M'</td>
+<td>2435</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'U'</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Then, we look at the frequency of fraud within different payment categories; it seems that <code>health</code> and <code>sportsandtoys</code> have the highest frequency of fraud.</p>
+<div id="cell-14" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>df2 <span class="op">=</span> df[[<span class="st">"category"</span>, <span class="st">"fraud"</span>]]</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>df2.groupby(<span class="st">"category"</span>).aggregate(<span class="st">'sum'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="5">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">fraud</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">category</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_barsandrestaurants'</td>
+<td>120</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_contents'</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_fashion'</td>
+<td>116</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_food'</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_health'</td>
+<td>1696</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_home'</td>
+<td>302</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_hotelservices'</td>
+<td>548</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_hyper'</td>
+<td>280</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_leisure'</td>
+<td>474</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_otherservices'</td>
+<td>228</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_sportsandtoys'</td>
+<td>1982</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_tech'</td>
+<td>158</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_transportation'</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_travel'</td>
+<td>578</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_wellnessandbeauty'</td>
+<td>718</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>Here we are investigating the average dollar amount for financial transaction in each payment category.</p>
+<div id="cell-16" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>df3 <span class="op">=</span> df[[<span class="st">"category"</span>, <span class="st">"amount"</span>]]</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>df3.groupby(<span class="st">"category"</span>).aggregate(<span class="st">'mean'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="6">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">amount</th>
+</tr>
+<tr class="odd">
+<th data-quarto-table-cell-role="th">category</th>
+<th data-quarto-table-cell-role="th"></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_barsandrestaurants'</td>
+<td>43.461014</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_contents'</td>
+<td>44.547571</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_fashion'</td>
+<td>65.666642</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_food'</td>
+<td>37.070405</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_health'</td>
+<td>135.621367</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_home'</td>
+<td>165.670846</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_hotelservices'</td>
+<td>205.614249</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_hyper'</td>
+<td>45.970421</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_leisure'</td>
+<td>288.911303</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_otherservices'</td>
+<td>135.881524</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_sportsandtoys'</td>
+<td>215.715280</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_tech'</td>
+<td>120.947937</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_transportation'</td>
+<td>26.958187</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">'es_travel'</td>
+<td>2250.409190</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">'es_wellnessandbeauty'</td>
+<td>65.511221</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="cell-17" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df3 <span class="op">=</span> df[[<span class="st">"amount"</span>, <span class="st">"fraud"</span>]]</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df3 <span class="op">=</span> df3[df3[<span class="st">"fraud"</span>] <span class="op">==</span> <span class="dv">1</span>]</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>v0 <span class="op">=</span> sns.histplot(data<span class="op">=</span>df3, x<span class="op">=</span><span class="st">"amount"</span>, bins<span class="op">=</span><span class="dv">8</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>v0.<span class="bu">set</span>(title<span class="op">=</span><span class="st">"Visualizing the number of Fraudulent Transactions over different Amounts"</span>)</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co">#df3['cat_age'] = np.select([df2.amount &lt; 2000, df2.amount &lt; 4000, df2.amount &lt; 6000, df2.amount &lt; 8000], ['&lt;2000', '2000-4000','4000-6000','6000-8000'], '&gt;8000')</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>c:\Users\oscar\anaconda3\envs\ml-0451\lib\site-packages\seaborn\_oldcore.py:1119: FutureWarning: use_inf_as_na option is deprecated and will be removed in a future version. Convert inf values to NaN before operating instead.
+  with pd.option_context('mode.use_inf_as_na', True):</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="FraudDetection_files/figure-html/cell-8-output-2.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This visualization shows the number of fraudulent transactions over different amounts. As the chart shows, the majority of fraudulent transactions occur with amounts under 1000$.</p>
+<div id="cell-19" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>df_vis <span class="op">=</span> df.copy()</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>df_vis[<span class="st">"category"</span>] <span class="op">=</span> df_vis[<span class="st">"category"</span>].<span class="bu">str</span>.<span class="bu">slice</span>(<span class="dv">4</span>,<span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>v1 <span class="op">=</span> sns.barplot(df_vis, x<span class="op">=</span><span class="st">"fraud"</span>, y<span class="op">=</span><span class="st">"category"</span>, estimator<span class="op">=</span><span class="st">"sum"</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>v1.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Fraud Count"</span>, ylabel<span class="op">=</span><span class="st">"Category"</span>, title<span class="op">=</span><span class="st">"Visualizing the number of Fraudulent Transactions for each Category"</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>v1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="FraudDetection_files/figure-html/cell-9-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This chart shows the number of fraudulent transactions in different categories. As shown, the sports and toys, and health categories have the highest amount of fraudulent transactions.</p>
+<div id="cell-21" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>v2 <span class="op">=</span> sns.barplot(df_vis, x<span class="op">=</span><span class="st">"amount"</span>, y<span class="op">=</span><span class="st">"category"</span>)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>v2.<span class="bu">set</span>(xlabel<span class="op">=</span><span class="st">"Average Amount"</span>, title<span class="op">=</span><span class="st">"Visualizing the Average Amount spent per Transaction for each Category"</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>v2</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="FraudDetection_files/figure-html/cell-10-output-1.png" class="img-fluid figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This chart visualizes the average amount of transactions in each category. As shown, the travel category has the largest average amount per transaction, with an average over 2000$.</p>
+<div id="cell-23" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(df))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(df[df[<span class="st">'fraud'</span>] <span class="op">==</span> <span class="dv">0</span>]))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="bu">len</span>(df[df[<span class="st">'fraud'</span>] <span class="op">==</span> <span class="dv">1</span>]))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>594643
+587443
+7200</code></pre>
+</div>
+</div>
+<p>Our data set contains 594643 total transactions, in which 587443 are not fraud and 7200 are fraud. This different between fraudulent transactions and not fraudulent transactions shows the imbalanced nature of this dataset. This will inform our evaluation method: we need to pay attention to both the true positive and true negative rates to ensure the effectiveness of our model. The true positive rate will represent the model’s ability to correctly identify positive instances of fraud.</p>
+</section>
+<section id="decision-tree-model" class="level1">
+<h1>Decision Tree Model</h1>
+<p>We use a scikit-learn Decision Tree Classifier model, for its ability to observe which variables are the most important to a fraud detection model and which variables may be most vulnerable to different attacks.</p>
+<div id="cell-27" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.tree <span class="im">import</span> DecisionTreeClassifier</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.model_selection <span class="im">import</span> cross_val_score</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn <span class="im">import</span> model_selection</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>tree_model <span class="op">=</span> DecisionTreeClassifier(random_state<span class="op">=</span><span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here we do some data preprocessing, dropping columns that are not useful or too large to be one-hot encoded.</p>
+<div id="cell-29" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> df.columns</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> cols.drop([<span class="st">'customer'</span>, <span class="st">'zipcodeOri'</span>, <span class="st">'zipMerchant'</span>, <span class="st">'fraud'</span>, <span class="st">'step'</span>])</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> df[cols]</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> pd.get_dummies(X, dtype<span class="op">=</span> <span class="bu">float</span>)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> df[<span class="st">'fraud'</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Then we do a train/test split, with our test data being 33% of our total dataset.</p>
+<div id="cell-31" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>X_train, X_test, y_train, y_test <span class="op">=</span> model_selection.train_test_split(X, y, test_size <span class="op">=</span> <span class="fl">0.33</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now we train our Decision Tree model.</p>
+<div id="cell-33" class="cell" data-execution_count="14">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>torch.manual_seed(<span class="dv">1</span>)</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>tree_model.fit(X_train, y_train)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="14">
+<style>#sk-container-id-1 {color: black;}#sk-container-id-1 pre{padding: 0;}#sk-container-id-1 div.sk-toggleable {background-color: white;}#sk-container-id-1 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-1 label.sk-toggleable__label-arrow:before {content: "▸";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-1 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-1 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-1 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-1 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-1 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-1 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: "▾";}#sk-container-id-1 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-1 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-1 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-1 div.sk-parallel-item::after {content: "";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-1 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-1 div.sk-serial::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-1 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-1 div.sk-item {position: relative;z-index: 1;}#sk-container-id-1 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-1 div.sk-item::before, #sk-container-id-1 div.sk-parallel-item::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-1 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-1 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-1 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-1 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-1 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-1 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-1 div.sk-label-container {text-align: center;}#sk-container-id-1 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-1 div.sk-text-repr-fallback {display: none;}</style><div id="sk-container-id-1" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>DecisionTreeClassifier(random_state=0)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br>On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden=""><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-1" type="checkbox" checked=""><label for="sk-estimator-id-1" class="sk-toggleable__label sk-toggleable__label-arrow">DecisionTreeClassifier</label><div class="sk-toggleable__content"><pre>DecisionTreeClassifier(random_state=0)</pre></div></div></div></div></div>
+</div>
+</div>
+<p>Using cross validation to improve our model.</p>
+<div id="cell-35" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>cross_val_score(tree_model, X_train, y_train, cv <span class="op">=</span> <span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="15">
+<pre><code>array([0.99351676, 0.9939158 , 0.9936899 ])</code></pre>
+</div>
+</div>
+<p>Now we test its effectiveness by analyzing its true positive rate and true negative rates on both training and test data. As we can see, the model performs remarkably well on the training data, and has a sufficiently high fraud detection rate (show by the true positive rate) on the testing data.</p>
+<div id="cell-37" class="cell" data-execution_count="16">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> confusion_matrix</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>train_preds <span class="op">=</span> tree_model.predict(X_train)</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>y_true <span class="op">=</span> y_train</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>tn, fp, fn, tp <span class="op">=</span> confusion_matrix(y_true<span class="op">=</span> y_true, y_pred<span class="op">=</span> train_preds).ravel()</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Positive Rate on Training Data with Unpoisoned Model = </span><span class="sc">{</span>tp<span class="op">/</span>(tp<span class="op">+</span>fn)<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Negative Rate on Training Data with Unpoisoned Model = </span><span class="sc">{</span>tn<span class="op">/</span>(tn<span class="op">+</span>fp) <span class="op">*</span> <span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Training Data with Unpoisoned Model = 99.79%
+True Negative Rate on Training Data with Unpoisoned Model = 100.00%</code></pre>
+</div>
+</div>
+<div id="cell-38" class="cell" data-execution_count="17">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>test_preds <span class="op">=</span> tree_model.predict(X_test)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>y_true <span class="op">=</span> y_test</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>tn, fp, fn, tp <span class="op">=</span> confusion_matrix(y_true<span class="op">=</span> y_true, y_pred<span class="op">=</span> test_preds).ravel()</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>tp_unpoisoned <span class="op">=</span> <span class="ss">f'True Positive Rate on Test Data with Unpoisoned Model = </span><span class="sc">{</span>tp<span class="op">/</span>(tp<span class="op">+</span>fn)<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>tn_unpoisoned <span class="op">=</span> <span class="ss">f'True Negative Rate on Test Data with Unpoisoned Model = </span><span class="sc">{</span>tn<span class="op">/</span>(tn<span class="op">+</span>fp) <span class="op">*</span> <span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tp_unpoisoned)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tn_unpoisoned)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Test Data with Unpoisoned Model = 76.18%
+True Negative Rate on Test Data with Unpoisoned Model = 99.71%</code></pre>
+</div>
+</div>
+<p>With a relatively high true positive rate, this is a sufficiently accurate fraud detection model for our purposes.</p>
+<p>Now, we investigate how the variables were used in this decision tree, so that we can find the features of the data that were most important in the classification process, and thus most vulnerable to an injection.</p>
+<div id="cell-41" class="cell" data-execution_count="18">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="cf">assert</span> <span class="bu">len</span>(X.columns) <span class="op">==</span> <span class="bu">len</span>(tree_model.feature_importances_)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>importance_data <span class="op">=</span> {</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">'feature'</span>: X.columns,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">'importance'</span>: tree_model.feature_importances_</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>imp <span class="op">=</span> pd.DataFrame(importance_data).sort_values(by<span class="op">=</span> <span class="st">'importance'</span>, axis <span class="op">=</span> <span class="dv">0</span>, ascending <span class="op">=</span> <span class="va">False</span>)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>imp.head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="18">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">feature</th>
+<th data-quarto-table-cell-role="th">importance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>amount</td>
+<td>0.716596</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">62</td>
+<td>merchant_'M980657600'</td>
+<td>0.059733</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">13</td>
+<td>merchant_'M1053599405'</td>
+<td>0.025989</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">47</td>
+<td>merchant_'M480139044'</td>
+<td>0.021692</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">36</td>
+<td>merchant_'M1913465890'</td>
+<td>0.018560</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">71</td>
+<td>category_'es_leisure'</td>
+<td>0.018383</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">56</td>
+<td>merchant_'M855959430'</td>
+<td>0.010980</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">34</td>
+<td>merchant_'M1873032707'</td>
+<td>0.009916</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">3</td>
+<td>age_'2'</td>
+<td>0.008878</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">10</td>
+<td>gender_'F'</td>
+<td>0.007778</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<section id="data-poisoning-appending-rows-targeting-specific-merchants" class="level2">
+<h2 class="anchored" data-anchor-id="data-poisoning-appending-rows-targeting-specific-merchants">Data Poisoning (Appending Rows: Targeting Specific Merchants)</h2>
+<p>Merchant-specific analysis for data poisoning. Here we are looking at the most important merchants in the decision tree, and determining whether they are important because they commit a lot of fraud or because they commit very little, i.e., whether they have a positive or negative effect on the decision process of the model.</p>
+<div id="cell-44" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>df4 <span class="op">=</span> df[[<span class="st">'merchant'</span>, <span class="st">'fraud'</span>]]</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>m_98065_count <span class="op">=</span> df4[<span class="st">'merchant'</span>].value_counts()[<span class="st">"'M980657600'"</span>]</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>m_10535_count <span class="op">=</span> df4[<span class="st">'merchant'</span>].value_counts()[<span class="st">"'M1053599405'"</span>]</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>m_19134_count <span class="op">=</span> df4[<span class="st">'merchant'</span>].value_counts()[<span class="st">"'M1913465890'"</span>]</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>m_48013_count <span class="op">=</span> df4[<span class="st">'merchant'</span>].value_counts()[<span class="st">"'M480139044'"</span>]</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>df4 <span class="op">=</span> df4.groupby(<span class="st">'merchant'</span>)[<span class="st">'fraud'</span>].<span class="bu">sum</span>()</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>m_98065_fraud <span class="op">=</span> df4[<span class="st">"'M980657600'"</span>]</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>m_10535_fraud <span class="op">=</span> df4[<span class="st">"'M1053599405'"</span>]</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>m_19134_fraud <span class="op">=</span> df4[<span class="st">"'M1913465890'"</span>]</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>m_48013_fraud <span class="op">=</span> df4[<span class="st">"'M480139044'"</span>]</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Rate of fraud for merchant M980657600:  </span><span class="sc">{</span>m_98065_fraud<span class="op">/</span>m_98065_count<span class="sc">:0.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Rate of fraud for merchant M1053599405: </span><span class="sc">{</span>m_10535_fraud<span class="op">/</span>m_10535_count<span class="sc">:0.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Rate of fraud for merchant M1913465890: </span><span class="sc">{</span>m_19134_fraud<span class="op">/</span>m_19134_count<span class="sc">:0.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Rate of fraud for merchant M480139044:  </span><span class="sc">{</span>m_48013_fraud<span class="op">/</span>m_48013_count<span class="sc">:0.2f}</span><span class="ss">%'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Rate of fraud for merchant M980657600:  0.83%
+Rate of fraud for merchant M1053599405: 0.00%
+Rate of fraud for merchant M1913465890: 0.00%
+Rate of fraud for merchant M480139044:  0.47%</code></pre>
+</div>
+</div>
+<p>It seems that merchants M980657600 and M480139044 are important to the decision tree due to their high rates of fraud, while merchants M1053599405 and M1913465890 are important due to their extremely low rate of fraud. A potential data poisoning attack strategy on these two merchants would likely involve injecting data that would change their fraud rates within the dataset, so that the decision tree model’s behavior upon test data that contains instances of these merchants would be affected.</p>
+<p>Another possible attack could look at the least important features of a classification model, and try to heavily influence the outcomes regarding a specific person/business (i.e., merchant). For example, for a merchant whose ID is listed as very low on the decision tree, which likely means that there are very few data points involving that merchant, we could try to influence the model to always flag fraud on all transactions involving that merchant, without affecting the overall accuracy of the model.</p>
+<div id="cell-47" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>non_imp <span class="op">=</span> pd.DataFrame(importance_data).sort_values(by<span class="op">=</span> <span class="st">'importance'</span>, axis <span class="op">=</span> <span class="dv">0</span>, ascending <span class="op">=</span> <span class="va">True</span>)</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>non_imp.head(<span class="dv">16</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="20">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">feature</th>
+<th data-quarto-table-cell-role="th">importance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">77</td>
+<td>category_'es_wellnessandbeauty'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">51</td>
+<td>merchant_'M677738360'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">45</td>
+<td>merchant_'M3697346'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">43</td>
+<td>merchant_'M348934600'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">58</td>
+<td>merchant_'M85975013'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">37</td>
+<td>merchant_'M1946091778'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">31</td>
+<td>merchant_'M1823072687'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">26</td>
+<td>merchant_'M1726401631'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">24</td>
+<td>merchant_'M1600850729'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">22</td>
+<td>merchant_'M151143676'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">17</td>
+<td>merchant_'M1313686961'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">16</td>
+<td>merchant_'M1294758098'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">14</td>
+<td>merchant_'M117188757'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">61</td>
+<td>merchant_'M97925176'</td>
+<td>0.0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">12</td>
+<td>gender_'U'</td>
+<td>0.0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">75</td>
+<td>category_'es_transportation'</td>
+<td>0.0</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<div id="cell-48" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>df6 <span class="op">=</span> df[[<span class="st">'merchant'</span>, <span class="st">'fraud'</span>]]</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>m_67773_count <span class="op">=</span> df6[<span class="st">'merchant'</span>].value_counts()[<span class="st">"'M677738360'"</span>]</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(m_67773_count)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>358</code></pre>
+</div>
+</div>
+<p>It seems that merchant M677738360 is rated as a non-important feature by the decision tree, and has relatively few data points. We will attempt a data poisoning attack that will inject enough data points to ensure that this merchant is consistently flagged for fraud by the decision tree, without affecting the overall accuracy of our model.</p>
+<div id="cell-50" class="cell" data-execution_count="22">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> X_train.copy()</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>X_train_poison[<span class="st">'fraud'</span>] <span class="op">=</span> y_train.copy()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-51" class="cell" data-execution_count="23">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>m_67773_examples <span class="op">=</span> X_train_poison[X_train_poison[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>m_67773_examples.head(<span class="dv">5</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="23">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">amount</th>
+<th data-quarto-table-cell-role="th">age_'0'</th>
+<th data-quarto-table-cell-role="th">age_'1'</th>
+<th data-quarto-table-cell-role="th">age_'2'</th>
+<th data-quarto-table-cell-role="th">age_'3'</th>
+<th data-quarto-table-cell-role="th">age_'4'</th>
+<th data-quarto-table-cell-role="th">age_'5'</th>
+<th data-quarto-table-cell-role="th">age_'6'</th>
+<th data-quarto-table-cell-role="th">age_'U'</th>
+<th data-quarto-table-cell-role="th">gender_'E'</th>
+<th data-quarto-table-cell-role="th">...</th>
+<th data-quarto-table-cell-role="th">category_'es_hotelservices'</th>
+<th data-quarto-table-cell-role="th">category_'es_hyper'</th>
+<th data-quarto-table-cell-role="th">category_'es_leisure'</th>
+<th data-quarto-table-cell-role="th">category_'es_otherservices'</th>
+<th data-quarto-table-cell-role="th">category_'es_sportsandtoys'</th>
+<th data-quarto-table-cell-role="th">category_'es_tech'</th>
+<th data-quarto-table-cell-role="th">category_'es_transportation'</th>
+<th data-quarto-table-cell-role="th">category_'es_travel'</th>
+<th data-quarto-table-cell-role="th">category_'es_wellnessandbeauty'</th>
+<th data-quarto-table-cell-role="th">fraud</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">453713</td>
+<td>74.73</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>...</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">333756</td>
+<td>148.30</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>...</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">550667</td>
+<td>56.72</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>...</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">405390</td>
+<td>34.40</td>
+<td>0.0</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>...</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">110299</td>
+<td>110.43</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>1.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>...</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0.0</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+
+<p>5 rows × 79 columns</p>
+</div>
+</div>
+</div>
+<div id="cell-52" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Merchant M67773830 has a fraud rate of </span><span class="sc">{</span>m_67773_examples[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="sc">:.1f}</span><span class="ss">%."</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'They have only </span><span class="sc">{</span>m_67773_examples<span class="sc">.</span>shape[<span class="dv">0</span>]<span class="sc">}</span><span class="ss"> transactions within the training set.'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Merchant M67773830 has a fraud rate of 0.0%.
+They have only 249 transactions within the training set.</code></pre>
+</div>
+</div>
+<p>Now we will construct an injection for Merchant M677738360 based upon 200 real data points with a positive fraud value. We will test how many injections it will take for the decision tree model to always flag their transactions for fraud, and then test to see whether these injections affect the overall accuracy rate of the model. We experimented previously with smaller values for <span class="math inline">\(n\)</span>, the sample size, but encountered an interesting problem: since the decision tree model values the feature <code>amount</code> so heavily, if we were to create data injections that were fraudulent and had similar values for <code>amount</code>, the decision tree model would not see this as an indication of the specific merchant being indicative of fraud, but rather the amount values themselves. To avoid this issue, we took a large sample of the merchant’s transactions, so that the <code>amount</code> value for our injections were varied, yet still representative of the merchant’s true transactions.</p>
+<div id="cell-54" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>m_67773_injection <span class="op">=</span> X_train_poison[X_train_poison[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>].sample(n<span class="op">=</span> <span class="dv">200</span>, replace<span class="op">=</span> <span class="va">False</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>m_67773_injection <span class="op">=</span> pd.DataFrame.from_dict(m_67773_injection)</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>m_67773_injection[<span class="st">'fraud'</span>] <span class="op">=</span> [<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>,</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>                              <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-55" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>inj_size <span class="op">=</span> <span class="bu">len</span>(m_67773_injection)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here, we experiment with our injection size, taking subsets of our injection and appending them to our training dataset. We increment each test by 100 injection points, up to a total injection size of 1000 data points. In each iteration, we train a new decision tree model, fit it to our training dataset containing the data poisoning injections, and compare its fraud detection predictions on the specific merchant’s data points in the testing data set.</p>
+<div id="cell-57" class="cell" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>X_train_poison_explore <span class="op">=</span> X_train_poison.copy()</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">0</span>, <span class="dv">10</span>):</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>    <span class="co"># injection step</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (i <span class="op">%</span> <span class="dv">2</span> <span class="op">==</span> <span class="dv">0</span>):</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>        X_train_poison_explore <span class="op">=</span> pd.concat([X_train_poison_explore.copy(), m_67773_injection[:<span class="bu">int</span>(inj_size<span class="op">/</span><span class="dv">2</span>)].copy()], axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>        X_train_poison_explore <span class="op">=</span> pd.concat([X_train_poison_explore.copy(), m_67773_injection[<span class="bu">int</span>(inj_size<span class="op">/</span><span class="dv">2</span>):].copy()], axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>    <span class="co"># splitting X and y for decision tree training, dropping fraud feature</span></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>    y_train_poison_explore <span class="op">=</span> X_train_poison_explore[<span class="st">'fraud'</span>].copy()</span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> X_train_poison_explore.columns</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>    cols <span class="op">=</span> cols.drop([<span class="st">'fraud'</span>])</span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>    X_train_poison_explore <span class="op">=</span> X_train_poison_explore[cols]</span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># instantiating new iteration of decision tree and fitting</span></span>
+<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>    tree_model_poison <span class="op">=</span> DecisionTreeClassifier(random_state<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>    tree_model_poison.fit(X_train_poison_explore, y_train_poison_explore)</span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>    cross_val_score(tree_model_poison, X_train_poison_explore, y_train_poison_explore, cv <span class="op">=</span> <span class="dv">3</span>)</span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># evaluation of current injection attack on the model's classification of the merchant</span></span>
+<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>    m_67773_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test[X_test[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a>    m_67773_preds_unpoisoned <span class="op">=</span> tree_model.predict(X_test[X_test[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-27"><a href="#cb36-27" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'For an injection size of </span><span class="sc">{</span>(i<span class="op">+</span><span class="dv">1</span>)<span class="op">*</span>(<span class="bu">int</span>(inj_size<span class="op">/</span><span class="dv">2</span>))<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb36-28"><a href="#cb36-28" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'The poisoned model predicts that </span><span class="sc">{</span>m_67773_preds_poison<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points with the Merchant ID M677738360 are fraudulent.'</span>)</span>
+<span id="cb36-29"><a href="#cb36-29" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f'The normal model predicts that </span><span class="sc">{</span>m_67773_preds_unpoisoned<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points with the Merchant ID M677738360 are fraudulent.'</span>)</span>
+<span id="cb36-30"><a href="#cb36-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-31"><a href="#cb36-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># resetting the exploration dataframe for next iteration</span></span>
+<span id="cb36-32"><a href="#cb36-32" aria-hidden="true" tabindex="-1"></a>    X_train_poison_explore[<span class="st">'fraud'</span>] <span class="op">=</span> y_train_poison_explore</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>For an injection size of 100
+The poisoned model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 200
+The poisoned model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 300
+The poisoned model predicts that 33.03% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 400
+The poisoned model predicts that 76.15% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 500
+The poisoned model predicts that 78.90% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 600
+The poisoned model predicts that 75.23% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 700
+The poisoned model predicts that 78.90% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 800
+The poisoned model predicts that 75.23% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 900
+The poisoned model predicts that 79.82% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.
+For an injection size of 1000
+The poisoned model predicts that 75.23% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.</code></pre>
+</div>
+</div>
+<p>It seems that the data poisoning injection overcomes the low-importance of the merchant ID M677738360 feature within the decision tree model after roughly 300 injections, and that the poisoning effect plateaus at an injection size of around 600, creating a fraud rate classification rate of approximately 75% within this merchant’s transactions.</p>
+<p>We’ll use this minimal injection size of <span class="math inline">\(n=600\)</span> to further analyze this attack’s effectiveness and detectability.</p>
+<div id="cell-60" class="cell" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co"># injection step</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>m_67773_injection_big <span class="op">=</span> m_67773_injection.copy()</span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">2</span>):</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>    m_67773_injection_big <span class="op">=</span> pd.concat([m_67773_injection_big.copy(), m_67773_injection.copy()], axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Size of injection: </span><span class="sc">{</span><span class="bu">len</span>(m_67773_injection_big)<span class="sc">}</span><span class="ss">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Size of injection: 600</code></pre>
+</div>
+</div>
+<div id="cell-61" class="cell" data-execution_count="29">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> pd.concat([X_train_poison, m_67773_injection_big], axis<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>m_67773_instances <span class="op">=</span> X_train_poison[X_train_poison[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'Number of instances with merchant ID M677338360 in the training data: </span><span class="sc">{</span><span class="bu">len</span>(m_67773_instances)<span class="sc">}</span><span class="ss">'</span>)</span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Fraud rate for this specific merchant within the training data: </span><span class="sc">{</span>m_67773_instances[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Number of instances with merchant ID M677338360 in the training data: 849
+Fraud rate for this specific merchant within the training data: 70.67%</code></pre>
+</div>
+</div>
+<p>With the injection, the fraud rate of merchant M677738360 increased to 70.7%</p>
+<div id="cell-63" class="cell" data-execution_count="30">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co"># splitting X and y for decision tree training</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a>y_train_poison <span class="op">=</span> X_train_poison[<span class="st">'fraud'</span>].copy()</span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> X_train_poison.columns</span>
+<span id="cb42-4"><a href="#cb42-4" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> cols.drop([<span class="st">'fraud'</span>])</span>
+<span id="cb42-5"><a href="#cb42-5" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> X_train_poison[cols]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Preparing the data for training by splitting the into X and y data frames.</p>
+<div id="cell-65" class="cell" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a><span class="co"># fitting iterations of the decision tree</span></span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>tree_model_poison <span class="op">=</span> DecisionTreeClassifier(random_state<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>tree_model_poison.fit(X_train_poison, y_train_poison)</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>cross_val_score(tree_model_poison, X_train_poison, y_train_poison, cv <span class="op">=</span> <span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="31">
+<pre><code>array([0.99253406, 0.99290242, 0.98975963])</code></pre>
+</div>
+</div>
+<div id="cell-66" class="cell" data-execution_count="32">
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>m_67773_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test[X_test[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb45-2"><a href="#cb45-2" aria-hidden="true" tabindex="-1"></a>m_67773_preds_unpoisoned <span class="op">=</span> tree_model.predict(X_test[X_test[<span class="st">'merchant_</span><span class="ch">\'</span><span class="st">M677738360</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb45-3"><a href="#cb45-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb45-4"><a href="#cb45-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The poisoned model predicts that </span><span class="sc">{</span>m_67773_preds_poison<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points with the Merchant ID M677738360 are fraudulent.'</span>)</span>
+<span id="cb45-5"><a href="#cb45-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The normal model predicts that </span><span class="sc">{</span>m_67773_preds_unpoisoned<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points with the Merchant ID M677738360 are fraudulent.'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The poisoned model predicts that 75.23% of the testing data points with the Merchant ID M677738360 are fraudulent.
+The normal model predicts that 0.00% of the testing data points with the Merchant ID M677738360 are fraudulent.</code></pre>
+</div>
+</div>
+<div id="cell-67" class="cell" data-execution_count="33">
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a>test_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test)</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>tn, fp, fn, tp <span class="op">=</span> confusion_matrix(y_true<span class="op">=</span> y_test, y_pred<span class="op">=</span> test_preds_poison).ravel()</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Positive Rate on Testing Data with Poisoned Model = </span><span class="sc">{</span>tp<span class="op">/</span>(tp<span class="op">+</span>fn)<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Negative Rate on Testing Data with Poisoned Model = </span><span class="sc">{</span>tn<span class="op">/</span>(tn<span class="op">+</span>fp) <span class="op">*</span> <span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Testing Data with Poisoned Model = 76.06%
+True Negative Rate on Testing Data with Poisoned Model = 99.66%</code></pre>
+</div>
+</div>
+<div id="cell-68" class="cell" data-execution_count="34">
+<div class="sourceCode cell-code" id="cb49"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb49-1"><a href="#cb49-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tp_unpoisoned)</span>
+<span id="cb49-2"><a href="#cb49-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tn_unpoisoned)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Test Data with Unpoisoned Model = 76.18%
+True Negative Rate on Test Data with Unpoisoned Model = 99.71%</code></pre>
+</div>
+</div>
+<p>As can be seen, the model trained upon the poisoned data set (the poisoned model) predicts that 75.23% of all instances of this specific merchant in the testing data are fraudulent, when the baseline (unpoisoned model) predicts an accurate 0% fraud rate. This dramatically increases the likelihood that this merchant will be flagged for fraud if they attempt to make any kind of transaction in the future. Looking at how the 600 point injection affects the total model accuracy, we can see that the true positive and true negative rates only fluctuate by 0.1% each, making our injection very difficult to detect when assessing the performance of the model as a whole.</p>
+</section>
+<section id="data-poisoning-test-altering-transactions-targeting-leisure-and-health-categories" class="level2">
+<h2 class="anchored" data-anchor-id="data-poisoning-test-altering-transactions-targeting-leisure-and-health-categories">Data Poisoning Test (Altering Transactions: Targeting Leisure and Health Categories)</h2>
+<div id="cell-71" class="cell" data-execution_count="35">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>imp.head(<span class="dv">10</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="35">
+<div>
+
+
+<table class="dataframe table table-sm table-striped small" data-quarto-postprocess="true" data-border="1">
+<thead>
+<tr class="header">
+<th data-quarto-table-cell-role="th"></th>
+<th data-quarto-table-cell-role="th">feature</th>
+<th data-quarto-table-cell-role="th">importance</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">0</td>
+<td>amount</td>
+<td>0.716596</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">62</td>
+<td>merchant_'M980657600'</td>
+<td>0.059733</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">13</td>
+<td>merchant_'M1053599405'</td>
+<td>0.025989</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">47</td>
+<td>merchant_'M480139044'</td>
+<td>0.021692</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">36</td>
+<td>merchant_'M1913465890'</td>
+<td>0.018560</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">71</td>
+<td>category_'es_leisure'</td>
+<td>0.018383</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">56</td>
+<td>merchant_'M855959430'</td>
+<td>0.010980</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">34</td>
+<td>merchant_'M1873032707'</td>
+<td>0.009916</td>
+</tr>
+<tr class="odd">
+<td data-quarto-table-cell-role="th">3</td>
+<td>age_'2'</td>
+<td>0.008878</td>
+</tr>
+<tr class="even">
+<td data-quarto-table-cell-role="th">10</td>
+<td>gender_'F'</td>
+<td>0.007778</td>
+</tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</div>
+<p>The two first categories that have the greatest impact on our models decisions are leisure and health. To attack these two categories, we needed to understand how they affect the model.</p>
+<div id="cell-73" class="cell" data-execution_count="36">
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> X_train.copy()</span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>X_train_poison[<span class="st">'fraud'</span>] <span class="op">=</span> y_train.copy()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-74" class="cell" data-execution_count="37">
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>X_leisure <span class="op">=</span> X_train_poison.loc[X_train_poison[<span class="st">"category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">"</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unpoisoned leisure category fraud rate: </span><span class="sc">{</span>X_leisure[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Unpoisoned leisure category fraud rate: 94.50%</code></pre>
+</div>
+</div>
+<p>The leisure category had a 94% fraud rate, and therefore likely influences the model positively to predict fraud, when a data point contains the leisure category.</p>
+<div id="cell-76" class="cell" data-execution_count="38">
+<div class="sourceCode cell-code" id="cb55"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb55-1"><a href="#cb55-1" aria-hidden="true" tabindex="-1"></a>X_health <span class="op">=</span> X_train_poison.loc[X_train_poison[<span class="st">"category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">"</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb55-2"><a href="#cb55-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Unpoisoned health category fraud rate: </span><span class="sc">{</span>X_health[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Unpoisoned health category fraud rate: 10.34%</code></pre>
+</div>
+</div>
+<p>In comparison, the health category had a 10% fraud rate, and therefore likely influences the model to not predict fraud given the health category.</p>
+<p>Our aim for this data poisoning attack is to render these two very features that are very important to the decision tree model unuseable. To do this, we will try to alter their fraud rates to around 50% each, so that the use of these features in a decision process is no better than flipping a coin.</p>
+</section>
+<section id="altering-1000-data-points" class="level2">
+<h2 class="anchored" data-anchor-id="altering-1000-data-points">Altering 1,000 data points</h2>
+<p>We will begin by altering 1,000 data points in the model training data, which is a slightly different method of attack than our last attack. Here, we are altering the data points to poison them, while in the last attack, we were appending the poisoned rows, hoping to overcome the unpoisoned rows.</p>
+<div id="cell-81" class="cell" data-execution_count="39">
+<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>X_train_poison1 <span class="op">=</span> X_train_poison.copy()</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>leisure_idxs1 <span class="op">=</span> X_train_poison1[X_train_poison1[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>].index</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>health_idxs1  <span class="op">=</span> X_train_poison1[X_train_poison1[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>].index</span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">1000</span>):</span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i<span class="op">%</span><span class="dv">10</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a>        X_train_poison1.at[leisure_idxs1[<span class="bu">int</span>(i<span class="op">/</span><span class="dv">10</span>)], <span class="st">'fraud'</span>] <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>: </span>
+<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a>        X_train_poison1.at[health_idxs1[i], <span class="st">'fraud'</span>] <span class="op">=</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We alter only 100 points in leisure and 900 points in health because there are only 324 points in leisure, but tens of thousands of data points with the health category.</p>
+<div id="cell-83" class="cell" data-execution_count="40">
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>X_leisure_poison <span class="op">=</span> X_train_poison1.loc[X_train_poison1[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Poisoned leisure category fraud rate: </span><span class="sc">{</span>X_leisure_poison[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Poisoned leisure category fraud rate: 66.36%</code></pre>
+</div>
+</div>
+<p>The alteration decreased the leisure category’s fraud rate from 94% to 66%.</p>
+<div id="cell-85" class="cell" data-execution_count="41">
+<div class="sourceCode cell-code" id="cb60"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb60-1"><a href="#cb60-1" aria-hidden="true" tabindex="-1"></a>X_health_poison <span class="op">=</span> X_train_poison1.loc[X_train_poison1[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb60-2"><a href="#cb60-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Poisoned health category fraud rate: </span><span class="sc">{</span>X_health_poison[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Poisoned health category fraud rate: 17.74%</code></pre>
+</div>
+</div>
+<p>The alteration increased the health category’s fraud rate from 10% to 18%.</p>
+</section>
+<section id="altering-5000-data-points" class="level2">
+<h2 class="anchored" data-anchor-id="altering-5000-data-points">Altering 5,000 data points</h2>
+<p>We then experiment with altering far more data points within the health category, as it is far larger than the leisure category. We alter 5,000 rows in total to poison them.</p>
+<div id="cell-89" class="cell" data-execution_count="42">
+<div class="sourceCode cell-code" id="cb62"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb62-1"><a href="#cb62-1" aria-hidden="true" tabindex="-1"></a>X_train_poison2 <span class="op">=</span> X_train_poison.copy()</span>
+<span id="cb62-2"><a href="#cb62-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-3"><a href="#cb62-3" aria-hidden="true" tabindex="-1"></a>leisure_idxs2 <span class="op">=</span> X_train_poison2[X_train_poison2[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>].index</span>
+<span id="cb62-4"><a href="#cb62-4" aria-hidden="true" tabindex="-1"></a>health_idxs2  <span class="op">=</span> X_train_poison2[X_train_poison2[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>].index</span>
+<span id="cb62-5"><a href="#cb62-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb62-6"><a href="#cb62-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5000</span>):</span>
+<span id="cb62-7"><a href="#cb62-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> i<span class="op">%</span><span class="dv">50</span> <span class="op">==</span> <span class="dv">0</span>:</span>
+<span id="cb62-8"><a href="#cb62-8" aria-hidden="true" tabindex="-1"></a>        X_train_poison2.at[leisure_idxs2[<span class="bu">int</span>(i<span class="op">/</span><span class="dv">50</span>)], <span class="st">'fraud'</span>] <span class="op">=</span> <span class="dv">0</span></span>
+<span id="cb62-9"><a href="#cb62-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>: </span>
+<span id="cb62-10"><a href="#cb62-10" aria-hidden="true" tabindex="-1"></a>        X_train_poison2.at[health_idxs2[i], <span class="st">'fraud'</span>] <span class="op">=</span> <span class="dv">1</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>For this reason, we still alter only 100 points in leisure and alter 4900 points in health.</p>
+<div id="cell-91" class="cell" data-execution_count="43">
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>X_leisure_poison2 <span class="op">=</span> X_train_poison2.loc[X_train_poison2[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Poisoned leisure category fraud rate: </span><span class="sc">{</span>X_leisure_poison2[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Poisoned leisure category fraud rate: 66.36%</code></pre>
+</div>
+</div>
+<p>The alteration still decreases the leisure category’s fraud rate from 94% to 66%.</p>
+<div id="cell-93" class="cell" data-execution_count="44">
+<div class="sourceCode cell-code" id="cb65"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>X_health_poison2 <span class="op">=</span> X_train_poison2.loc[X_train_poison2[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>]</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"Poisoned health category fraud rate: </span><span class="sc">{</span>X_health_poison2[<span class="st">'fraud'</span>]<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Poisoned health category fraud rate: 50.46%</code></pre>
+</div>
+</div>
+<p>Now, the alteration increased the health category’s fraud rate from 10% to 50%.</p>
+<p>This second data poisoning attack has brought both categories’ fraud rates to around 50%. We will use this attack to evaluate its effect on the model’s ability to predict data points with these features in the testing data.</p>
+<div id="cell-96" class="cell" data-execution_count="45">
+<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> X_train_poison2.copy()</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>y_train_poison <span class="op">=</span> X_train_poison[<span class="st">'fraud'</span>]</span>
+<span id="cb67-4"><a href="#cb67-4" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> X_train_poison.columns</span>
+<span id="cb67-5"><a href="#cb67-5" aria-hidden="true" tabindex="-1"></a>cols <span class="op">=</span> cols.drop([<span class="st">'fraud'</span>])</span>
+<span id="cb67-6"><a href="#cb67-6" aria-hidden="true" tabindex="-1"></a>X_train_poison <span class="op">=</span> X_train_poison[cols]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div id="cell-97" class="cell" data-execution_count="46">
+<div class="sourceCode cell-code" id="cb68"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb68-1"><a href="#cb68-1" aria-hidden="true" tabindex="-1"></a>tree_model_poison <span class="op">=</span> DecisionTreeClassifier(random_state<span class="op">=</span><span class="dv">0</span>)</span>
+<span id="cb68-2"><a href="#cb68-2" aria-hidden="true" tabindex="-1"></a>tree_model_poison.fit(X_train_poison, y_train_poison)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="46">
+<style>#sk-container-id-2 {color: black;}#sk-container-id-2 pre{padding: 0;}#sk-container-id-2 div.sk-toggleable {background-color: white;}#sk-container-id-2 label.sk-toggleable__label {cursor: pointer;display: block;width: 100%;margin-bottom: 0;padding: 0.3em;box-sizing: border-box;text-align: center;}#sk-container-id-2 label.sk-toggleable__label-arrow:before {content: "▸";float: left;margin-right: 0.25em;color: #696969;}#sk-container-id-2 label.sk-toggleable__label-arrow:hover:before {color: black;}#sk-container-id-2 div.sk-estimator:hover label.sk-toggleable__label-arrow:before {color: black;}#sk-container-id-2 div.sk-toggleable__content {max-height: 0;max-width: 0;overflow: hidden;text-align: left;background-color: #f0f8ff;}#sk-container-id-2 div.sk-toggleable__content pre {margin: 0.2em;color: black;border-radius: 0.25em;background-color: #f0f8ff;}#sk-container-id-2 input.sk-toggleable__control:checked~div.sk-toggleable__content {max-height: 200px;max-width: 100%;overflow: auto;}#sk-container-id-2 input.sk-toggleable__control:checked~label.sk-toggleable__label-arrow:before {content: "▾";}#sk-container-id-2 div.sk-estimator input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-label input.sk-toggleable__control:checked~label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 input.sk-hidden--visually {border: 0;clip: rect(1px 1px 1px 1px);clip: rect(1px, 1px, 1px, 1px);height: 1px;margin: -1px;overflow: hidden;padding: 0;position: absolute;width: 1px;}#sk-container-id-2 div.sk-estimator {font-family: monospace;background-color: #f0f8ff;border: 1px dotted black;border-radius: 0.25em;box-sizing: border-box;margin-bottom: 0.5em;}#sk-container-id-2 div.sk-estimator:hover {background-color: #d4ebff;}#sk-container-id-2 div.sk-parallel-item::after {content: "";width: 100%;border-bottom: 1px solid gray;flex-grow: 1;}#sk-container-id-2 div.sk-label:hover label.sk-toggleable__label {background-color: #d4ebff;}#sk-container-id-2 div.sk-serial::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: 0;}#sk-container-id-2 div.sk-serial {display: flex;flex-direction: column;align-items: center;background-color: white;padding-right: 0.2em;padding-left: 0.2em;position: relative;}#sk-container-id-2 div.sk-item {position: relative;z-index: 1;}#sk-container-id-2 div.sk-parallel {display: flex;align-items: stretch;justify-content: center;background-color: white;position: relative;}#sk-container-id-2 div.sk-item::before, #sk-container-id-2 div.sk-parallel-item::before {content: "";position: absolute;border-left: 1px solid gray;box-sizing: border-box;top: 0;bottom: 0;left: 50%;z-index: -1;}#sk-container-id-2 div.sk-parallel-item {display: flex;flex-direction: column;z-index: 1;position: relative;background-color: white;}#sk-container-id-2 div.sk-parallel-item:first-child::after {align-self: flex-end;width: 50%;}#sk-container-id-2 div.sk-parallel-item:last-child::after {align-self: flex-start;width: 50%;}#sk-container-id-2 div.sk-parallel-item:only-child::after {width: 0;}#sk-container-id-2 div.sk-dashed-wrapped {border: 1px dashed gray;margin: 0 0.4em 0.5em 0.4em;box-sizing: border-box;padding-bottom: 0.4em;background-color: white;}#sk-container-id-2 div.sk-label label {font-family: monospace;font-weight: bold;display: inline-block;line-height: 1.2em;}#sk-container-id-2 div.sk-label-container {text-align: center;}#sk-container-id-2 div.sk-container {/* jupyter's `normalize.less` sets `[hidden] { display: none; }` but bootstrap.min.css set `[hidden] { display: none !important; }` so we also need the `!important` here to be able to override the default hidden behavior on the sphinx rendered scikit-learn.org. See: https://github.com/scikit-learn/scikit-learn/issues/21755 */display: inline-block !important;position: relative;}#sk-container-id-2 div.sk-text-repr-fallback {display: none;}</style><div id="sk-container-id-2" class="sk-top-container"><div class="sk-text-repr-fallback"><pre>DecisionTreeClassifier(random_state=0)</pre><b>In a Jupyter environment, please rerun this cell to show the HTML representation or trust the notebook. <br>On GitHub, the HTML representation is unable to render, please try loading this page with nbviewer.org.</b></div><div class="sk-container" hidden=""><div class="sk-item"><div class="sk-estimator sk-toggleable"><input class="sk-toggleable__control sk-hidden--visually" id="sk-estimator-id-2" type="checkbox" checked=""><label for="sk-estimator-id-2" class="sk-toggleable__label sk-toggleable__label-arrow">DecisionTreeClassifier</label><div class="sk-toggleable__content"><pre>DecisionTreeClassifier(random_state=0)</pre></div></div></div></div></div>
+</div>
+</div>
+<div id="cell-98" class="cell" data-execution_count="47">
+<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>cross_val_score(tree_model_poison, X_train_poison, y_train_poison, cv <span class="op">=</span> <span class="dv">3</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display" data-execution_count="47">
+<pre><code>array([0.98485738, 0.9807911 , 0.97600205])</code></pre>
+</div>
+</div>
+<p>Evaluating overall accuracy of the poisoned decision tree model on its predictions for the leisure and health categories in the testing data.</p>
+<div id="cell-100" class="cell" data-execution_count="48">
+<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>leisure_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test[X_test[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>leisure_preds_unpoisoned <span class="op">=</span> tree_model.predict(X_test[X_test[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_leisure</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb71-4"><a href="#cb71-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The poisoned model predicts that </span><span class="sc">{</span>leisure_preds_poison<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points within the leisure category are fraudulent.'</span>)</span>
+<span id="cb71-5"><a href="#cb71-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The normal model predicts that </span><span class="sc">{</span>leisure_preds_unpoisoned<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points within the leisure category are fraudulent.'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The poisoned model predicts that 63.95% of the testing data points within the leisure category are fraudulent.
+The normal model predicts that 95.35% of the testing data points within the leisure category are fraudulent.</code></pre>
+</div>
+</div>
+<div id="cell-101" class="cell" data-execution_count="49">
+<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a>health_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test[X_test[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a>health_preds_unpoisoned <span class="op">=</span> tree_model.predict(X_test[X_test[<span class="st">'category_</span><span class="ch">\'</span><span class="st">es_health</span><span class="ch">\'</span><span class="st">'</span>] <span class="op">==</span> <span class="fl">1.0</span>])</span>
+<span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The poisoned model predicts that </span><span class="sc">{</span>health_preds_poison<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points within the health category are fraudulent.'</span>)</span>
+<span id="cb73-5"><a href="#cb73-5" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'The normal model predicts that </span><span class="sc">{</span>health_preds_unpoisoned<span class="sc">.</span>mean()<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">% of the testing data points within the health category are fraudulent.'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>The poisoned model predicts that 50.14% of the testing data points within the health category are fraudulent.
+The normal model predicts that 10.92% of the testing data points within the health category are fraudulent.</code></pre>
+</div>
+</div>
+<p>However, did our injection affect the overall testing accuracy of the model?</p>
+<div id="cell-103" class="cell" data-execution_count="50">
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.metrics <span class="im">import</span> confusion_matrix</span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a>test_preds_poison <span class="op">=</span> tree_model_poison.predict(X_test)</span>
+<span id="cb75-4"><a href="#cb75-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb75-5"><a href="#cb75-5" aria-hidden="true" tabindex="-1"></a>tn, fp, fn, tp <span class="op">=</span> confusion_matrix(y_true<span class="op">=</span> y_test, y_pred<span class="op">=</span> test_preds_poison).ravel()</span>
+<span id="cb75-6"><a href="#cb75-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Positive Rate on Testing Data with Poisoned Model = </span><span class="sc">{</span>tp<span class="op">/</span>(tp<span class="op">+</span>fn)<span class="op">*</span><span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span>
+<span id="cb75-7"><a href="#cb75-7" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f'True Negative Rate on Testing Data with Poisoned Model = </span><span class="sc">{</span>tn<span class="op">/</span>(tn<span class="op">+</span>fp) <span class="op">*</span> <span class="dv">100</span><span class="sc">:.2f}</span><span class="ss">%'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Testing Data with Poisoned Model = 76.26%
+True Negative Rate on Testing Data with Poisoned Model = 98.68%</code></pre>
+</div>
+</div>
+<p>Comparing them with our unpoisoned model’s evalution:</p>
+<div id="cell-105" class="cell" data-execution_count="51">
+<div class="sourceCode cell-code" id="cb77"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb77-1"><a href="#cb77-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tp_unpoisoned)</span>
+<span id="cb77-2"><a href="#cb77-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(tn_unpoisoned)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>True Positive Rate on Test Data with Unpoisoned Model = 76.18%
+True Negative Rate on Test Data with Unpoisoned Model = 99.71%</code></pre>
+</div>
+</div>
+<p>As seen in the true positive and negative rates of the poisoned and not poisoned models, the accuracy fluctuated by around 0.1% in the true positive rate and around 1% in the true negative rate. Since this data poisoning attack does not drastically compromise the overall accuracy of the model, it is relatively undetectable when assessing the performance of the model on the overall representation of data. However, the attack greatly impacts the ability for the decision tree model to accurately predict fraud in transactions in the leisure and health categories.</p>
+</section>
+</section>
+<section id="results" class="level1">
+<h1>Results</h1>
+<p>We implemented a decision tree model that produced a true positive rate (predicting fraudulent transactions) of 76.2% accuracy in the testing data and a true negative rate (predicting non-fraudulent transactions) of 99.7% accuracy in the testing data. We then constructed a targeted data poisoning attack on merchant M677738360, which consisted of a 600 point injection. Before poisoning, the decision tree model had a <strong>0% positive fraud rate</strong> prediction on merchant M677738360.</p>
+<p>After the targeted attack, the model predicted that <strong>75.23% of merchant M677738360’s transactions were fraudulent</strong>, dramatically increasing the likelihood that this specific merchant will be flagged for fraud by the detection model if they attempt to make any transaction in the future. Further, this injection had very little impact on the overall accuracy of the model. The baseline model (trained on the true dataset without data poisoning) still had true positive and negative rates of 76.2% and 99.7%, respectively. In comparison, the poisoned model had true positive and negative rates of 76.1% and 99.7%, respectively. This difference of only 0.1% in the true positive rate leads us to believe that our attack would be relatively undetectable when evaluating the poisoned model’s performance on a representative sample of the dataset.</p>
+<p>In an attempt to poison our model by altering transactions in the leisure and health categories, we conducted alterations to determine the extent in which we could corrupt our model. The <strong>leisure category had a fraud rate of 94.5%</strong> and the <strong>health category had a fraud rate of 10.3%</strong>. Our attack intended to change both of these fraud rates to around 50%, so that these features of the data would not be useful to the fraud detection model. We experimented by altering a set of 1,000 data points and a set of 5,000 data points. The test that altered 5,000 points in the leisure and health categories resulted in a fraud prediction rate decrease from <strong>94.5% to 66.3% in the leisure category</strong> and an increase from <strong>10.3% to 50.4% in the health category</strong>.</p>
+<p>In comparing these models across these categories, the <strong>baseline model predicted fraud in 95%</strong> of the testing data in the <strong>leisure category</strong>, while the <strong>poisoned model only predicted fraud in 63%</strong> of the testing data in the <strong>leisure category</strong>. For the health category, the <strong>baseline model predicted fraud in 11% of the testing data labeled as health</strong>, while the <strong>poisoned model predicted fraud in 50%</strong> of the testing data in the <strong>health category</strong>. Further, this 5,000 point altercation did not drastically impact the overall accuracy of the model. The baseline model had true positive and negative rates of 76.2% and 99.7%, respectively. In comparison, the poisoned model had true positive and negative rates of 76.3% and 98.7%, respectively. Again, this leads us to believe that our attack would be relatively undetectable when evaluating the poisoned model’s performance on a representative sample of the dataset.</p>
+</section>
+<section id="conclusion" class="level1">
+<h1>Conclusion</h1>
+<p>We were able to implement a decision tree model that accurately predicted fraudulent credit card transactions. Using this model, we constructed two successful data poisoning attacks, both targeting specific features and disabling the models’ functionality within certain categories. In both of these attacks, our data injections did not affect the overall accuracy of the fraud detection model, which we believe makes our attacks virtually undetectable. Therefore, our initial goals of creating an accurate model and poisoning the model were met. However, given the scale and power of the data poisoning attacks we researched, we produced a far more elementary and detectable attack than we were envisioning at the start of the project. After studying techniques used by tools like Glaze and Nightshade, we created expectations that our attacks would not only be difficult to detect, but also fully cripple our models. Given the simplicity of our dataset, we were limited to only a few targets and techniques for poisoning, which made our expectations far harder to reach. With more time, we could have experimented on a larger scale with other data types, potentially attempting attacks akin to Glaze or Nightshade, and more interesting attacks on models that train using computer vision. However, considering our time constraints and lack of expertise, we managed to achieve our goals efficiently and effectively.</p>
+</section>
+<section id="group-contributions-statement" class="level1">
+<h1>Group Contributions Statement</h1>
+<p>Tristan worked on the visualizations and aggregate charts for the data set. Oscar implemented and tested the decision tree model. We worked together on both data poisoning attacks, but Oscar predominantly worked on the merchant attack and Tristan worked on the category attack. Tristan wrote the abstract, results, and concluding sections of the blog post and Oscar wrote the introduction, values statement, materials and methods, and bibliography sections. We believe that we had a very comparable work distribution.</p>
+</section>
+<section id="personal-reflection" class="level1">
+<h1>Personal Reflection</h1>
+<p>Throughout my research, I’ve learned a lot about the data poisoning protocols, how they work, and uncovering their ability to affect machine learning models. Understanding how malicious actors can manipulate data to disrupt machine learning algorithms, as well as the defensive strategies to counter such attacks, has been immensely interesting. This knowledge has broadened my understanding of cybersecurity and its intersection with machine learning.</p>
+<p>In the process of implementing and communicating about our project, I’ve gained helpful insights into effective team coding practices. Experimenting with different methods, we discovered that our productivity was at its best when we embraced the driver/passenger coding approach. With both of us focused on the screen simultaneously, we circumvented the issues related to messy GitHub merges and file transfers through version control. This collaborative method streamlined our workflow and allowed efficient development.</p>
+<p>Our project’s success exceeded our initial expectations in terms of both scope and depth, and we are immensely proud of what we have produced. However, there was some disappointment when we realized that approximately half of our initial work had to be omitted from the final product. We realized that some of our work was no longer relevant to how our project had evolved, or that the initial set up would make our project unrealistically large.</p>
+<p>Looking ahead, I am confident that the experiences gained from this project will greatly inform my future projects and career trajectory. With a keen interest in cybersecurity and data protection, particularly their implications for machine learning, I am eager to continue exploring innovative solutions and contributing to advancements in these fields. This journey has encouraged my passion to address the evolving challenges of safeguarding data integrity and enhancing security measures in machine learning applications.</p>
+</section>
+<section id="references" class="level1">
+
+
+
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-chen2017targeted" class="csl-entry" role="listitem">
+Chen, Xinyun, Chang Liu, Bo Li, Kimberly Lu, and Dawn Song. 2017. <span>“Targeted Backdoor Attacks on Deep Learning Systems Using Data Poisoning.”</span> <a href="https://arxiv.org/abs/1712.05526">https://arxiv.org/abs/1712.05526</a>.
+</div>
+<div id="ref-lopezrojasdata" class="csl-entry" role="listitem">
+Lopez-Rojas, Edgar Alonso, and Stefan Axelsson. 2014. <span>“BankSim: A Bank Payment Simulation for Fraud Detection Research.”</span> In <em>26th European Modeling and Simulation Symposium, EMSS 2014</em>.
+</div>
+<div id="ref-shan2023glaze" class="csl-entry" role="listitem">
+Shan, Shawn, Jenna Cryan, Emily Wenger, Haitao Zheng, Rana Hanocka, and Ben Y. Zhao. 2023. <span>“Glaze: Protecting Artists from Style Mimicry by Text-to-Image Models.”</span> <a href="https://arxiv.org/abs/2302.04222">https://arxiv.org/abs/2302.04222</a>.
+</div>
+<div id="ref-shan2024nightshade" class="csl-entry" role="listitem">
+Shan, Shawn, Wenxin Ding, Josephine Passananti, Stanley Wu, Haitao Zheng, and Ben Y. Zhao. 2024. <span>“Nightshade: Prompt-Specific Poisoning Attacks on Text-to-Image Generative Models.”</span> <a href="https://arxiv.org/abs/2310.13828">https://arxiv.org/abs/2310.13828</a>.
+</div>
+</div></section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
