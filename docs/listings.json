@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/KaggleTitanicPost/titanic.html",
       "/posts/DataPoisoningPost/FraudDetection.html",
       "/posts/KernelPost/index.html",
       "/posts/NewtonPost/index.html",
